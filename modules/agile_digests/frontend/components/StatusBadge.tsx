@@ -1,19 +1,19 @@
+import { Badge, type MantineColor } from "@mantine/core";
+
 import { STATUS_LABELS, type Status } from "../types";
 
-const STYLES: Record<Status, string> = {
-  on_track: "bg-green-600 text-white",
-  at_risk: "bg-amber-500 text-black",
-  blocked: "bg-red-600 text-white",
-  complete: "bg-blue-600 text-white",
-  unknown: "bg-neutral-400 text-black",
+const COLORS: Record<Status, MantineColor> = {
+  on_track: "green",
+  at_risk: "yellow",
+  blocked: "red",
+  complete: "accent",
+  unknown: "gray",
 };
 
 export function StatusBadge({ status }: { status: Status }) {
   return (
-    <span
-      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STYLES[status]}`}
-    >
+    <Badge color={COLORS[status]} variant="light" radius="sm">
       {STATUS_LABELS[status]}
-    </span>
+    </Badge>
   );
 }

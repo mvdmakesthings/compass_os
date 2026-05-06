@@ -1,5 +1,7 @@
 "use client";
 
+import { Button, Group, Select, Stack, Text, TextInput } from "@mantine/core";
+import { IconPlus, IconX } from "@tabler/icons-react";
 import { useState } from "react";
 
 import { apiPost } from "@/lib/api";
@@ -21,7 +23,9 @@ export function TeamPicker({ teams, value, onChange, onTeamCreated }: Props) {
   async function submit() {
     if (!draft.trim()) return;
     try {
-      const team = await apiPost<Team>("/agile_digests/teams", { name: draft.trim() });
+      const team = await apiPost<Team>("/agile_digests/teams", {
+        name: draft.trim(),
+      });
       onTeamCreated(team);
       onChange(team.id);
       setDraft("");
@@ -32,55 +36,57 @@ export function TeamPicker({ teams, value, onChange, onTeamCreated }: Props) {
     }
   }
 
+  const data = teams
+    .filter((t) => !t.archived_at)
+    .map((t) => ({ value: String(t.id), label: t.name }));
+
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2 items-center">
-        <select
-          className="rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1 text-sm"
-          value={value ?? ""}
-          onChange={(e) => onChange(Number(e.target.value))}
-        >
-          <option value="">Select team…</option>
-          {teams
-            .filter((t) => !t.archived_at)
-            .map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-        </select>
-        <button
-          type="button"
-          className="text-xs text-blue-600 hover:underline"
+    <Stack gap="xs">
+      <Group gap="xs" wrap="nowrap" align="flex-end">
+        <Select
+          data={data}
+          placeholder="Select team…"
+          value={value === null ? null : String(value)}
+          onChange={(v) => v && onChange(Number(v))}
+          searchable
+          nothingFoundMessage="No teams"
+          style={{ flex: 1 }}
+        />
+        <Button
+          variant={adding ? "default" : "light"}
+          leftSection={
+            adding ? <IconX size={14} /> : <IconPlus size={14} />
+          }
           onClick={() => setAdding((v) => !v)}
         >
-          {adding ? "Cancel" : "+ Add team"}
-        </button>
-      </div>
+          {adding ? "Cancel" : "New team"}
+        </Button>
+      </Group>
       {adding && (
-        <div className="flex gap-2">
-          <input
-            className="rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1 text-sm flex-1"
+        <Group gap="xs" wrap="nowrap">
+          <TextInput
             placeholder="New team name"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => setDraft(e.currentTarget.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 submit();
               }
             }}
+            style={{ flex: 1 }}
+            autoFocus
           />
-          <button
-            type="button"
-            className="rounded bg-blue-600 text-white text-xs px-3"
-            onClick={submit}
-          >
+          <Button onClick={submit} disabled={!draft.trim()}>
             Add
-          </button>
-        </div>
+          </Button>
+        </Group>
       )}
-      {error && <p className="text-xs text-red-600">{error}</p>}
-    </div>
+      {error && (
+        <Text size="xs" c="red">
+          {error}
+        </Text>
+      )}
+    </Stack>
   );
 }

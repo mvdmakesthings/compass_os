@@ -1,38 +1,60 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Inter, JetBrains_Mono } from "next/font/google";
 
-import { modules } from "@/lib/modules";
+import "@mantine/core/styles.css";
+import "@mantine/notifications/styles.css";
+import "@mantine/spotlight/styles.css";
+import "@mantine/dates/styles.css";
 import "./globals.css";
+
+import {
+  ColorSchemeScript,
+  MantineProvider,
+  mantineHtmlProps,
+} from "@mantine/core";
+import { ModalsProvider } from "@mantine/modals";
+import { Notifications } from "@mantine/notifications";
+
+import { AppShellChrome } from "@/components/shell/AppShell";
+import { theme } from "@/lib/theme";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains-mono",
+});
 
 export const metadata: Metadata = {
   title: "Compass V2",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const navEntries = modules.flatMap((m) => m.nav);
-
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-        <div className="flex min-h-screen">
-          <aside className="w-56 border-r border-neutral-200 dark:border-neutral-800 p-4">
-            <Link href="/" className="block text-lg font-semibold mb-6">
-              Compass V2
-            </Link>
-            <nav className="flex flex-col gap-1 text-sm">
-              {navEntries.map((entry) => (
-                <Link
-                  key={entry.href}
-                  href={entry.href}
-                  className="rounded px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800"
-                >
-                  {entry.label}
-                </Link>
-              ))}
-            </nav>
-          </aside>
-          <main className="flex-1 p-8">{children}</main>
-        </div>
+    <html
+      lang="en"
+      {...mantineHtmlProps}
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+    >
+      <head>
+        <ColorSchemeScript forceColorScheme="dark" />
+      </head>
+      <body>
+        <MantineProvider
+          theme={theme}
+          defaultColorScheme="dark"
+          forceColorScheme="dark"
+        >
+          <ModalsProvider>
+            <Notifications position="bottom-right" />
+            <AppShellChrome>{children}</AppShellChrome>
+          </ModalsProvider>
+        </MantineProvider>
       </body>
     </html>
   );

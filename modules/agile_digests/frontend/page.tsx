@@ -1,8 +1,26 @@
 "use client";
 
+import {
+  Alert,
+  Anchor,
+  Button,
+  Group,
+  Loader,
+  NumberInput,
+  Select,
+  Stack,
+  Table,
+  Text,
+} from "@mantine/core";
+import {
+  IconAlertTriangle,
+  IconPlus,
+  IconSearch,
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { DataCard, EmptyState, PageHeader } from "@/components/ui";
 import { apiGet } from "@/lib/api";
 
 import type { DigestSummary, Team } from "./types";
@@ -10,19 +28,21 @@ import type { DigestSummary, Team } from "./types";
 export default function AgileDigestsPage() {
   const [digests, setDigests] = useState<DigestSummary[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [teamFilter, setTeamFilter] = useState<number | "">("");
+  const [teamFilter, setTeamFilter] = useState<string | null>(null);
   const [yearFilter, setYearFilter] = useState<number | "">("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiGet<Team[]>("/agile_digests/teams").then(setTeams).catch(() => {});
+    apiGet<Team[]>("/agile_digests/teams")
+      .then(setTeams)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (teamFilter !== "") params.set("team_id", String(teamFilter));
+    if (teamFilter) params.set("team_id", teamFilter);
     if (yearFilter !== "") params.set("year", String(yearFilter));
     const q = params.toString();
     apiGet<DigestSummary[]>(`/agile_digests/digests${q ? `?${q}` : ""}`)
@@ -34,88 +54,146 @@ export default function AgileDigestsPage() {
       .finally(() => setLoading(false));
   }, [teamFilter, yearFilter]);
 
-  return (
-    <div className="max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Agile Digests</h1>
-        <div className="flex gap-2">
-          <Link
-            href="/agile_digests/search"
-            className="rounded border border-neutral-300 dark:border-neutral-700 px-3 py-1 text-sm"
-          >
-            Search
-          </Link>
-          <Link
-            href="/agile_digests/new"
-            className="rounded bg-blue-600 text-white px-3 py-1 text-sm"
-          >
-            + New digest
-          </Link>
-        </div>
-      </div>
+  const teamOptions = teams.map((t) => ({
+    value: String(t.id),
+    label: t.name,
+  }));
 
-      <div className="flex gap-3 mb-4 text-sm">
-        <select
-          className="rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1"
-          value={teamFilter}
-          onChange={(e) => setTeamFilter(e.target.value === "" ? "" : Number(e.target.value))}
-        >
-          <option value="">All teams</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          placeholder="Year"
-          className="w-24 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1"
-          value={yearFilter}
-          onChange={(e) => setYearFilter(e.target.value === "" ? "" : Number(e.target.value))}
-        />
-      </div>
+  return (
+    <Stack gap="lg">
+      <PageHeader
+        title="Agile Digests"
+        description="Sprint summaries grouped by team."
+        actions={
+          <>
+            <Button
+              component={Link}
+              href="/agile_digests/search"
+              variant="default"
+              leftSection={<IconSearch size={14} />}
+            >
+              Search
+            </Button>
+            <Button
+              component={Link}
+              href="/agile_digests/new"
+              leftSection={<IconPlus size={14} />}
+            >
+              New digest
+            </Button>
+          </>
+        }
+      />
+
+      <DataCard title="Filters">
+        <Group gap="sm" align="flex-end">
+          <Select
+            label="Team"
+            data={teamOptions}
+            value={teamFilter}
+            onChange={setTeamFilter}
+            placeholder="All teams"
+            clearable
+            searchable
+            w={220}
+          />
+          <NumberInput
+            label="Year"
+            value={yearFilter}
+            onChange={(v) =>
+              setYearFilter(v === "" || v === undefined ? "" : Number(v))
+            }
+            placeholder="Any"
+            min={2000}
+            max={2100}
+            allowDecimal={false}
+            w={120}
+          />
+        </Group>
+      </DataCard>
 
       {error && (
-        <pre className="rounded bg-red-100 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200 mb-4">
+        <Alert
+          color="red"
+          variant="light"
+          icon={<IconAlertTriangle size={16} />}
+          title="Failed to load digests"
+        >
           {error}
-        </pre>
+        </Alert>
       )}
+
       {loading ? (
-        <p className="text-sm text-neutral-500">Loading…</p>
+        <Group justify="center" py="lg" gap="xs">
+          <Loader size="sm" />
+          <Text size="sm" c="dimmed">
+            Loading…
+          </Text>
+        </Group>
       ) : digests.length === 0 ? (
-        <p className="text-sm text-neutral-500">No digests yet.</p>
+        <EmptyState
+          title="No digests yet"
+          description="Create your first sprint digest to see it here."
+          action={
+            <Button
+              component={Link}
+              href="/agile_digests/new"
+              leftSection={<IconPlus size={14} />}
+            >
+              New digest
+            </Button>
+          }
+        />
       ) : (
-        <table className="w-full text-sm">
-          <thead className="text-xs uppercase text-neutral-500 text-left">
-            <tr>
-              <th className="py-2">Team</th>
-              <th className="py-2">Sprint</th>
-              <th className="py-2">Date</th>
-              <th className="py-2"># features</th>
-            </tr>
-          </thead>
-          <tbody>
-            {digests.map((d) => (
-              <tr
-                key={d.id}
-                className="border-t border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-900"
-              >
-                <td className="py-2">
-                  <Link href={`/agile_digests/${d.id}`} className="font-medium">
-                    {d.team.name}
-                  </Link>
-                </td>
-                <td className="py-2">
-                  Sprint {d.sprint_number} of {d.year}
-                </td>
-                <td className="py-2">{d.digest_date}</td>
-                <td className="py-2">{d.feature_count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataCard>
+          <Table
+            highlightOnHover
+            verticalSpacing="xs"
+            horizontalSpacing="sm"
+            withRowBorders
+          >
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Team</Table.Th>
+                <Table.Th>Sprint</Table.Th>
+                <Table.Th>Date</Table.Th>
+                <Table.Th ta="right"># features</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {digests.map((d) => (
+                <Table.Tr key={d.id}>
+                  <Table.Td>
+                    <Anchor
+                      component={Link}
+                      href={`/agile_digests/${d.id}`}
+                      fw={500}
+                      size="sm"
+                    >
+                      {d.team.name}
+                    </Anchor>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">
+                      Sprint {d.sprint_number} of {d.year}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" ff="monospace">
+                      {d.digest_date}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td ta="right">
+                    <Text size="sm" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {d.feature_count}
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </DataCard>
       )}
-    </div>
+    </Stack>
   );
 }

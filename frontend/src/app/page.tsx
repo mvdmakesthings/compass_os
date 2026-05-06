@@ -1,23 +1,58 @@
+import { Anchor, Code, SimpleGrid, Stack, Text } from "@mantine/core";
+
+import { DataCard, PageHeader, StatCard } from "@/components/ui";
 import { modules } from "@/lib/modules";
 
 export default function Home() {
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-2">Dashboard</h1>
-      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
-        Compass V2 is a modular shell. Each feature is a vertical slice under{" "}
-        <code className="font-mono">modules/</code>.
-      </p>
-      <h2 className="text-sm uppercase tracking-wide text-neutral-500 mb-2">
-        Registered modules ({modules.length})
-      </h2>
-      <ul className="space-y-1">
-        {modules.map((m) => (
-          <li key={m.name} className="font-mono text-sm">
-            {m.name}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Stack gap="lg">
+      <PageHeader
+        title="Dashboard"
+        description={
+          <>
+            Compass V2 is a modular shell. Each feature is a vertical slice under{" "}
+            <Code>modules/</Code>.
+          </>
+        }
+      />
+
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+        <StatCard
+          label="Registered modules"
+          value={modules.length}
+          hint="Defined in src/lib/modules.ts"
+        />
+        <StatCard
+          label="Color scheme"
+          value="Dark"
+          hint="Forced — no light variants"
+        />
+        <StatCard
+          label="Component kit"
+          value="Mantine v9"
+          hint="Tailwind v4 for layout glue"
+        />
+      </SimpleGrid>
+
+      <DataCard
+        title="Modules"
+        description="Each entry is a self-contained vertical slice."
+      >
+        <Stack gap={4}>
+          {modules.map((m) => {
+            const href = m.nav[0]?.href ?? "/";
+            return (
+              <Anchor key={m.name} href={href} size="sm" ff="monospace">
+                {m.name}
+              </Anchor>
+            );
+          })}
+        </Stack>
+      </DataCard>
+
+      <Text size="xs" c="dimmed">
+        Tip: press <Code>⌘K</Code> to jump between modules.
+      </Text>
+    </Stack>
   );
 }

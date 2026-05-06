@@ -1,9 +1,25 @@
 "use client";
 
+import {
+  Alert,
+  Button,
+  Group,
+  Loader,
+  Stack,
+  Table,
+  Text,
+} from "@mantine/core";
+import { modals } from "@mantine/modals";
+import {
+  IconAlertTriangle,
+  IconEdit,
+  IconTrash,
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { DataCard, PageHeader } from "@/components/ui";
 import { apiDelete, apiGet } from "@/lib/api";
 
 import { StatusBadge } from "../components/StatusBadge";
@@ -22,19 +38,47 @@ export default function DigestDetailPage() {
       .catch((e: Error) => setError(e.message));
   }, [id]);
 
-  async function remove() {
-    if (!confirm("Delete this digest?")) return;
-    await apiDelete(`/agile_digests/digests/${id}`);
-    router.push("/agile_digests");
+  function confirmDelete() {
+    modals.openConfirmModal({
+      title: "Delete digest",
+      children: (
+        <Text size="sm">
+          This permanently removes the digest and its features. Continue?
+        </Text>
+      ),
+      labels: { confirm: "Delete", cancel: "Cancel" },
+      confirmProps: { color: "red" },
+      onConfirm: async () => {
+        await apiDelete(`/agile_digests/digests/${id}`);
+        router.push("/agile_digests");
+      },
+    });
   }
 
   if (error)
     return (
-      <pre className="rounded bg-red-100 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200">
-        {error}
-      </pre>
+      <Stack gap="lg">
+        <PageHeader title="Digest" />
+        <Alert
+          color="red"
+          variant="light"
+          icon={<IconAlertTriangle size={16} />}
+          title="Failed to load digest"
+        >
+          {error}
+        </Alert>
+      </Stack>
     );
-  if (!digest) return <p className="text-sm text-neutral-500">Loading…</p>;
+
+  if (!digest)
+    return (
+      <Group justify="center" py="xl" gap="xs">
+        <Loader size="sm" />
+        <Text size="sm" c="dimmed">
+          Loading…
+        </Text>
+      </Group>
+    );
 
   const byCategory: Record<Category, typeof digest.features> = {
     in_progress: digest.features.filter((f) => f.category === "in_progress"),
@@ -42,82 +86,117 @@ export default function DigestDetailPage() {
   };
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-semibold">{digest.team.name}</h1>
-          <p className="text-sm text-neutral-500">
-            Sprint {digest.sprint_number} of {digest.year} · {digest.digest_date}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/agile_digests/${id}/edit`}
-            className="rounded border border-neutral-300 dark:border-neutral-700 px-3 py-1 text-sm"
-          >
-            Edit
-          </Link>
-          <button
-            type="button"
-            onClick={remove}
-            className="rounded border border-red-600 text-red-600 px-3 py-1 text-sm"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
+    <Stack gap="lg">
+      <PageHeader
+        title={digest.team.name}
+        description={
+          <>
+            Sprint {digest.sprint_number} of {digest.year} ·{" "}
+            <Text component="span" ff="monospace" size="sm">
+              {digest.digest_date}
+            </Text>
+          </>
+        }
+        actions={
+          <>
+            <Button
+              component={Link}
+              href={`/agile_digests/${id}/edit`}
+              variant="default"
+              leftSection={<IconEdit size={14} />}
+            >
+              Edit
+            </Button>
+            <Button
+              color="red"
+              variant="light"
+              leftSection={<IconTrash size={14} />}
+              onClick={confirmDelete}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      />
 
       {digest.header_notes && (
-        <p className="text-sm whitespace-pre-wrap">{digest.header_notes}</p>
+        <DataCard title="Header notes">
+          <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+            {digest.header_notes}
+          </Text>
+        </DataCard>
       )}
 
       {(["in_progress", "upcoming"] as Category[]).map((cat) => (
-        <section key={cat}>
-          <h2 className="text-sm uppercase tracking-wide text-neutral-500 mb-2">
-            {CATEGORY_LABELS[cat]}
-          </h2>
+        <DataCard key={cat} title={CATEGORY_LABELS[cat]}>
           {byCategory[cat].length === 0 ? (
-            <p className="text-xs text-neutral-500 italic">None.</p>
+            <Text size="sm" c="dimmed" fs="italic">
+              None.
+            </Text>
           ) : (
-            <table className="w-full text-sm border-collapse">
-              <thead className="bg-neutral-100 dark:bg-neutral-900 text-xs uppercase">
-                <tr>
-                  <th className="text-left p-2 w-1/6">Feature</th>
-                  <th className="text-left p-2 w-1/4">Description</th>
-                  <th className="text-left p-2 w-1/5">Business Value</th>
-                  <th className="text-left p-2 w-1/8">Target Go Live</th>
-                  <th className="text-left p-2">Status</th>
-                  <th className="text-left p-2 w-1/4">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byCategory[cat].map((f) => (
-                  <tr
-                    key={f.id}
-                    className="border-t border-neutral-200 dark:border-neutral-800 align-top"
-                  >
-                    <td className="p-2 font-medium">{f.feature_name}</td>
-                    <td className="p-2 whitespace-pre-wrap">{f.description}</td>
-                    <td className="p-2 whitespace-pre-wrap">{f.business_value}</td>
-                    <td className="p-2">{f.target_go_live}</td>
-                    <td className="p-2">
-                      <StatusBadge status={f.status} />
-                    </td>
-                    <td className="p-2 whitespace-pre-wrap">{f.notes}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Table.ScrollContainer minWidth={720}>
+              <Table
+                verticalSpacing="xs"
+                horizontalSpacing="sm"
+                withRowBorders
+                striped
+                highlightOnHover
+              >
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Feature</Table.Th>
+                    <Table.Th>Description</Table.Th>
+                    <Table.Th>Business value</Table.Th>
+                    <Table.Th>Target go live</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th>Notes</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {byCategory[cat].map((f) => (
+                    <Table.Tr key={f.id} style={{ verticalAlign: "top" }}>
+                      <Table.Td>
+                        <Text size="sm" fw={500}>
+                          {f.feature_name}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                          {f.description}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                          {f.business_value}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{f.target_go_live}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <StatusBadge status={f.status} />
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                          {f.notes}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           )}
-        </section>
+        </DataCard>
       ))}
 
       {digest.footer_notes && (
-        <section>
-          <h2 className="text-sm uppercase tracking-wide text-neutral-500 mb-2">Notes</h2>
-          <p className="text-sm whitespace-pre-wrap">{digest.footer_notes}</p>
-        </section>
+        <DataCard title="Footer notes">
+          <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+            {digest.footer_notes}
+          </Text>
+        </DataCard>
       )}
-    </div>
+    </Stack>
   );
 }

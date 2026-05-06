@@ -52,17 +52,19 @@ compass_v2/
 - **Frontend:** Next.js (App Router), React 19, TypeScript, Tailwind CSS v4
 - **Database:** PostgreSQL 16
 - **Reverse proxy:** Caddy 2, serving `http://compass-v2.local`
-- **Dev environment:** Docker Compose only. Add `127.0.0.1 compass-v2.local` to `/etc/hosts`.
+- **Dev environment:** Docker Compose only. Add `127.0.0.1 compass-v2.local` to `/etc/hosts`. App is at `http://compass-v2.local:8080`. Postgres is exposed on host `5433` (so v1 on `5432` keeps working). Caddy uses `auto_https off` to stay HTTP.
 
 Notably absent vs. v1: ChromaDB, faster-whisper, Anthropic client, n8n. Each comes back when a module needs it.
 
 ## Module contract
 
+**Module names must be snake_case**, not kebab-case. The loader does `importlib.import_module(f"modules.{name}.backend")`, which fails on hyphens. The same name is used as the folder, the manifest `name`, the URL prefix, and the Python package — keep them identical.
+
 A module is the directory `modules/<name>/`. It must contain:
 
 1. **`module.json`** — `{ "name": "<name>", "version": "x.y.z", "nav": [{ "label", "href" }] }`. The loader uses this for discovery; absence means the directory is ignored.
 2. **`backend/__init__.py`** — a Python package. If it exposes an `APIRouter` named `router`, the loader mounts it at `/<name>` (so `/api/<name>/...` after Caddy strips the prefix). It should also import its `models` submodule so SQLAlchemy classes register on the shared `Base.metadata`.
-3. **`frontend/page.tsx`** — default-exports a React component. Wire it into Next.js by adding a one-line re-export at `frontend/src/app/(modules)/<name>/page.tsx`: `export { default } from "@modules/<name>/page";`. Add `{ name, nav }` to `frontend/src/lib/modules.ts` so the sidebar links it.
+3. **`frontend/page.tsx`** — default-exports a React component. Wire it into Next.js by adding a one-line re-export at `frontend/src/app/(modules)/<name>/page.tsx`: `export { default } from "@modules/<name>/frontend/page";` — the `/frontend/` segment goes in the import path, not the tsconfig alias (TS path wildcards only substitute once). Add `{ name, nav }` to `frontend/src/lib/modules.ts` so the sidebar links it.
 
 Per-module migrations live at `modules/<name>/backend/migrations/versions/`. They aren't auto-discovered yet — for the scaffold, all migrations live under `backend/migrations/versions/`. Switch to `version_locations` once a module ships tables.
 
@@ -75,11 +77,18 @@ Both `backend` and `frontend` containers mount the repo's `modules/` directory:
 
 ## Running backend commands in the container
 
-`docker compose exec` does not inherit the entrypoint's env, so set `PYTHONPATH` explicitly:
+`docker compose exec` does not inherit the entrypoint's env, so set `PYTHONPATH` explicitly. Use the migrate wrapper for alembic — bare `alembic` won't pick up per-module `version_locations`:
 
 ```bash
-docker compose exec -T -e PYTHONPATH=/app:/app/backend backend alembic current
-docker compose exec -T -e PYTHONPATH=/app:/app/backend backend alembic upgrade head
+docker compose exec -T -e PYTHONPATH=/app:/app/backend backend python -m app.scripts.migrate current
+docker compose exec -T -e PYTHONPATH=/app:/app/backend backend python -m app.scripts.migrate upgrade head
+docker compose exec -T -e PYTHONPATH=/app:/app/backend backend python -m app.scripts.migrate revision -m "msg" --autogenerate --version-path /app/modules/<name>/backend/migrations/versions
+```
+
+Run tests (52 tests, ~99% coverage):
+
+```bash
+docker compose exec -T backend sh -c "cd /app && PYTHONPATH=/app:/app/backend pytest"
 ```
 
 Inspect the dev DB:
@@ -104,6 +113,25 @@ docker compose exec -T db psql -U compass -d compass -c "\dt"
 - Tests beyond a smoke check (test infra arrives with the first real feature module)
 - Production Dockerfiles (`output: 'standalone'`, multi-stage builds)
 - Auto-discovery of frontend modules at build time
+
+## Gotchas
+
+- **macOS bind mounts can serve stale content.** After editing files mounted into a container (`tsconfig.json`, `conftest.py`, etc.), restart the service if you see "old version" symptoms: `docker compose restart <svc>`.
+- **Coverage on async routes** needs `concurrency = thread,greenlet` in `backend/.coveragerc` plus the `greenlet` package, otherwise lines after `await` go uncounted.
+- **Tests use NullPool** (set in `conftest.py`) because asyncpg connections bind to the event loop that created them, and pytest-asyncio creates a fresh loop per test.
+- **DB DNS race**: `entrypoint.sh` runs `app.scripts.wait_for_db` before alembic — `depends_on: service_healthy` isn't enough on its own.
+- **Adding a root-level file that the backend container needs to see** (e.g. test config) requires a new `volumes:` entry in `docker-compose.yml`.
+
+## Frontend module conventions
+
+The frontend is dark-only, dense, and Linear-leaning, built on **Mantine v9** with Tailwind v4 reserved for layout glue. Full reference at `frontend/docs/design-system.md` and live at `/design_system`.
+
+- **Mantine first.** Component identity (buttons, inputs, cards, alerts, tables) comes from Mantine. Tailwind utilities only for layout (`flex`, `grid`, `gap-*`, `space-y-*`).
+- **No light mode.** Never use `dark:` variants or conditional theming. Color scheme is forced dark in the root layout.
+- **Every module page opens with `<PageHeader>`** from `@/components/ui`, then groups sections with `<DataCard>`. Use `<EmptyState>` when there's no data yet and `<StatCard>` for dashboard tiles.
+- **Icons:** `@tabler/icons-react`. Size 14 inline, 16 in alerts/inputs, 20 in headers.
+- **Theme:** single source of truth in `frontend/src/lib/theme.ts`. Default radius `sm`, default component size `sm`.
+- **Navigation:** register module nav entries in `frontend/src/lib/modules.ts` — both the sidebar and the `⌘K` Spotlight palette read from there.
 
 ## Git rules
 

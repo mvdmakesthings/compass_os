@@ -1,7 +1,10 @@
 "use client";
 
+import { Alert, Code, Loader, Stack, Text } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
+import { DataCard, PageHeader } from "@/components/ui";
 import { apiGet } from "@/lib/api";
 
 type PingResponse = { ok: boolean; db_now: string };
@@ -17,24 +20,43 @@ export default function HelloPage() {
   }, []);
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-2">Hello</h1>
-      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
-        Vertical-slice demo module. The page below comes from{" "}
-        <code className="font-mono">modules/hello/frontend/page.tsx</code> and the data
-        from <code className="font-mono">modules/hello/backend/routes.py</code>.
-      </p>
-      {error && (
-        <pre className="rounded bg-red-100 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200">
-          {error}
-        </pre>
-      )}
-      {data && (
-        <pre className="rounded bg-neutral-100 dark:bg-neutral-900 p-3 text-sm font-mono">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      )}
-      {!data && !error && <p className="text-sm text-neutral-500">Loading…</p>}
-    </div>
+    <Stack gap="lg">
+      <PageHeader
+        title="Hello"
+        description={
+          <>
+            Vertical-slice demo module. Page comes from{" "}
+            <Code>modules/hello/frontend/page.tsx</Code>; data from{" "}
+            <Code>modules/hello/backend/routes.py</Code>.
+          </>
+        }
+      />
+
+      <DataCard title="GET /hello/ping" description="Live response from the backend.">
+        {error && (
+          <Alert
+            color="red"
+            variant="light"
+            icon={<IconAlertTriangle size={16} />}
+            title="Request failed"
+          >
+            {error}
+          </Alert>
+        )}
+        {!error && !data && (
+          <Stack align="center" py="md" gap="xs">
+            <Loader size="sm" />
+            <Text size="xs" c="dimmed">
+              Pinging backend…
+            </Text>
+          </Stack>
+        )}
+        {data && (
+          <Code block ff="monospace">
+            {JSON.stringify(data, null, 2)}
+          </Code>
+        )}
+      </DataCard>
+    </Stack>
   );
 }

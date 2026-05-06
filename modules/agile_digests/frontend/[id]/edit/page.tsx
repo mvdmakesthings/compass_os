@@ -1,8 +1,11 @@
 "use client";
 
+import { Alert, Group, Loader, Stack, Text } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { PageHeader } from "@/components/ui";
 import { apiGet } from "@/lib/api";
 
 import { DigestForm } from "../../components/DigestForm";
@@ -22,11 +25,28 @@ export default function EditDigestPage() {
 
   if (error)
     return (
-      <pre className="rounded bg-red-100 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200">
-        {error}
-      </pre>
+      <Stack gap="lg">
+        <PageHeader title="Edit digest" />
+        <Alert
+          color="red"
+          variant="light"
+          icon={<IconAlertTriangle size={16} />}
+          title="Failed to load digest"
+        >
+          {error}
+        </Alert>
+      </Stack>
     );
-  if (!digest) return <p className="text-sm text-neutral-500">Loading…</p>;
+
+  if (!digest)
+    return (
+      <Group justify="center" py="xl" gap="xs">
+        <Loader size="sm" />
+        <Text size="sm" c="dimmed">
+          Loading…
+        </Text>
+      </Group>
+    );
 
   return <DigestForm digestId={id} initial={digest} />;
 }

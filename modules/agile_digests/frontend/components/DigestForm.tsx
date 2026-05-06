@@ -1,11 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  Alert,
+  Anchor,
+  Button,
+  Group,
+  NumberInput,
+  SimpleGrid,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+} from "@mantine/core";
+import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
+import { DataCard, PageHeader } from "@/components/ui";
 import { apiGet, apiPost, apiPut } from "@/lib/api";
 
-import { CATEGORIES, CATEGORY_LABELS, type Category, type Digest, type DigestPayload, type Feature, type Team } from "../types";
+import {
+  CATEGORIES,
+  CATEGORY_LABELS,
+  type Category,
+  type Digest,
+  type DigestPayload,
+  type Feature,
+  type Team,
+} from "../types";
 import { FeatureRow } from "./FeatureRow";
 import { TeamPicker } from "./TeamPicker";
 
@@ -32,7 +54,9 @@ export function DigestForm({ digestId, initial }: Props) {
   const [teamId, setTeamId] = useState<number | null>(initial?.team.id ?? null);
   const [sprint, setSprint] = useState<number>(initial?.sprint_number ?? 1);
   const [year, setYear] = useState<number>(initial?.year ?? new Date().getFullYear());
-  const [digestDate, setDigestDate] = useState<string>(initial?.digest_date ?? todayIso());
+  const [digestDate, setDigestDate] = useState<string>(
+    initial?.digest_date ?? todayIso(),
+  );
   const [headerNotes, setHeaderNotes] = useState<string>(initial?.header_notes ?? "");
   const [footerNotes, setFooterNotes] = useState<string>(initial?.footer_notes ?? "");
   const [features, setFeatures] = useState<Feature[]>(
@@ -50,7 +74,9 @@ export function DigestForm({ digestId, initial }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiGet<Team[]>("/agile_digests/teams").then(setTeams).catch(() => setTeams([]));
+    apiGet<Team[]>("/agile_digests/teams")
+      .then(setTeams)
+      .catch(() => setTeams([]));
   }, []);
 
   function addFeature(category: Category) {
@@ -68,7 +94,9 @@ export function DigestForm({ digestId, initial }: Props) {
   function moveFeature(index: number, dir: -1 | 1) {
     setFeatures((fs) => {
       const cat = fs[index].category;
-      const sameCatIndices = fs.map((f, i) => (f.category === cat ? i : -1)).filter((i) => i >= 0);
+      const sameCatIndices = fs
+        .map((f, i) => (f.category === cat ? i : -1))
+        .filter((i) => i >= 0);
       const posInCat = sameCatIndices.indexOf(index);
       const swapWithCat = posInCat + dir;
       if (swapWithCat < 0 || swapWithCat >= sameCatIndices.length) return fs;
@@ -108,84 +136,88 @@ export function DigestForm({ digestId, initial }: Props) {
   }
 
   return (
-    <form onSubmit={submit} className="max-w-4xl space-y-6">
-      <h1 className="text-2xl font-semibold">{digestId ? "Edit digest" : "New digest"}</h1>
+    <Stack gap="lg" component="form" onSubmit={submit}>
+      <PageHeader
+        title={digestId ? "Edit digest" : "New digest"}
+        description={
+          <Anchor href="/agile_digests" size="sm">
+            ← Back to digests
+          </Anchor>
+        }
+      />
 
-      <section className="space-y-3">
-        <label className="block text-sm">
-          <span className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Team</span>
-          <TeamPicker
-            teams={teams}
-            value={teamId}
-            onChange={setTeamId}
-            onTeamCreated={(t) => setTeams((ts) => [...ts, t])}
-          />
-        </label>
-        <div className="grid grid-cols-3 gap-3">
-          <label className="block text-sm">
-            <span className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Sprint #</span>
-            <input
-              type="number"
-              min={0}
-              className="w-full rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1"
-              value={sprint}
-              onChange={(e) => setSprint(Number(e.target.value))}
+      <DataCard title="Sprint">
+        <Stack gap="sm">
+          <Stack gap={4}>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+              Team
+            </Text>
+            <TeamPicker
+              teams={teams}
+              value={teamId}
+              onChange={setTeamId}
+              onTeamCreated={(t) => setTeams((ts) => [...ts, t])}
             />
-          </label>
-          <label className="block text-sm">
-            <span className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Year</span>
-            <input
-              type="number"
+          </Stack>
+          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+            <NumberInput
+              label="Sprint #"
+              min={0}
+              value={sprint}
+              onChange={(v) => setSprint(typeof v === "number" ? v : Number(v) || 0)}
+              allowDecimal={false}
+            />
+            <NumberInput
+              label="Year"
               min={2000}
               max={2100}
-              className="w-full rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1"
               value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
+              onChange={(v) => setYear(typeof v === "number" ? v : Number(v) || 0)}
+              allowDecimal={false}
             />
-          </label>
-          <label className="block text-sm">
-            <span className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Digest date</span>
-            <input
+            <TextInput
+              label="Digest date"
               type="date"
-              className="w-full rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1"
               value={digestDate}
-              onChange={(e) => setDigestDate(e.target.value)}
+              onChange={(e) => setDigestDate(e.currentTarget.value)}
             />
-          </label>
-        </div>
-        <label className="block text-sm">
-          <span className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Header notes</span>
-          <textarea
+          </SimpleGrid>
+          <Textarea
+            label="Header notes"
             rows={3}
-            className="w-full rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1"
+            autosize
+            minRows={3}
             value={headerNotes}
-            onChange={(e) => setHeaderNotes(e.target.value)}
+            onChange={(e) => setHeaderNotes(e.currentTarget.value)}
           />
-        </label>
-      </section>
+        </Stack>
+      </DataCard>
 
       {CATEGORIES.map((cat) => {
         const inCat = features
           .map((f, i) => ({ f, i }))
           .filter((x) => x.f.category === cat);
         return (
-          <section key={cat} className="space-y-3">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm uppercase tracking-wide text-neutral-500">
-                {CATEGORY_LABELS[cat]}
-              </h2>
-              <button
-                type="button"
-                className="text-sm text-blue-600 hover:underline"
+          <DataCard
+            key={cat}
+            title={CATEGORY_LABELS[cat]}
+            actions={
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconPlus size={12} />}
                 onClick={() => addFeature(cat)}
               >
-                + Add feature
-              </button>
-            </div>
-            {inCat.length === 0 && (
-              <p className="text-xs text-neutral-500 italic">No features.</p>
-            )}
-            <div className="space-y-3">
+                Add feature
+              </Button>
+            }
+          >
+            <Stack gap="sm">
+              {inCat.length === 0 && (
+                <Text size="sm" c="dimmed" fs="italic">
+                  No features.
+                </Text>
+              )}
               {inCat.map(({ f, i }, posInCat) => (
                 <FeatureRow
                   key={i}
@@ -193,48 +225,51 @@ export function DigestForm({ digestId, initial }: Props) {
                   onChange={(next) => updateFeature(i, next)}
                   onRemove={() => removeFeature(i)}
                   onMoveUp={posInCat > 0 ? () => moveFeature(i, -1) : null}
-                  onMoveDown={posInCat < inCat.length - 1 ? () => moveFeature(i, 1) : null}
+                  onMoveDown={
+                    posInCat < inCat.length - 1
+                      ? () => moveFeature(i, 1)
+                      : null
+                  }
                 />
               ))}
-            </div>
-          </section>
+            </Stack>
+          </DataCard>
         );
       })}
 
-      <section>
-        <label className="block text-sm">
-          <span className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Footer notes</span>
-          <textarea
-            rows={3}
-            className="w-full rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1"
-            value={footerNotes}
-            onChange={(e) => setFooterNotes(e.target.value)}
-          />
-        </label>
-      </section>
+      <DataCard title="Footer notes">
+        <Textarea
+          rows={3}
+          autosize
+          minRows={3}
+          value={footerNotes}
+          onChange={(e) => setFooterNotes(e.currentTarget.value)}
+        />
+      </DataCard>
 
       {error && (
-        <pre className="rounded bg-red-100 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200 whitespace-pre-wrap">
+        <Alert
+          color="red"
+          variant="light"
+          icon={<IconAlertTriangle size={16} />}
+          title="Save failed"
+        >
           {error}
-        </pre>
+        </Alert>
       )}
 
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-blue-600 text-white px-4 py-2 text-sm disabled:opacity-50"
-        >
-          {submitting ? "Saving…" : digestId ? "Save changes" : "Create digest"}
-        </button>
-        <button
+      <Group>
+        <Button type="submit" loading={submitting}>
+          {digestId ? "Save changes" : "Create digest"}
+        </Button>
+        <Button
           type="button"
-          className="rounded border border-neutral-300 dark:border-neutral-700 px-4 py-2 text-sm"
+          variant="default"
           onClick={() => router.push("/agile_digests")}
         >
           Cancel
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Group>
+    </Stack>
   );
 }

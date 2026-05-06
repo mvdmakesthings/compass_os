@@ -9,6 +9,15 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@mantine/core": "^9",
+    "@mantine/dates": "^9",
+    "@mantine/form": "^9",
+    "@mantine/hooks": "^9",
+    "@mantine/modals": "^9",
+    "@mantine/notifications": "^9",
+    "@mantine/spotlight": "^9",
+    "@tabler/icons-react": "^3",
+    "dayjs": "^1.11",
     "next": "^16.2",
     "react": "^19.0",
     "react-dom": "^19.0"
@@ -19,6 +28,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8",
+    "postcss-preset-mantine": "^1.17",
+    "postcss-simple-vars": "^7",
     "tailwindcss": "^4.2",
     "typescript": "^5"
   }
