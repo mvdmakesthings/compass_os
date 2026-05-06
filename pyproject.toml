@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["backend/tests", "modules"]
+python_files = ["test_*.py"]
+addopts = [
+    "-ra",
+    "--cov=backend/app",
+    "--cov=modules/agile_digests/backend",
+    "--cov=modules/hello/backend",
+    "--cov-config=backend/.coveragerc",
+    "--cov-report=term-missing",
+]
+
+[tool.coverage.run]
+branch = true

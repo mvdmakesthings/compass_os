@@ -1,0 +1,15 @@
+{
+	auto_https off
+}
+
+http://compass-v2.local, http://localhost {
+	@api path /api /api/*
+	handle @api {
+		uri strip_prefix /api
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
