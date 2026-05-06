@@ -15,24 +15,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from modules.teams.backend.models import Team
 
 EMBEDDING_DIM = 384
 
-VALID_CATEGORIES = ("in_progress", "upcoming")
 VALID_STATUSES = ("on_track", "at_risk", "blocked", "complete", "unknown")
-
-
-class Team(Base):
-    __tablename__ = "ad_teams"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-
-    digests: Mapped[list["Digest"]] = relationship(back_populates="team")
 
 
 class Digest(Base):
@@ -41,7 +28,7 @@ class Digest(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     team_id: Mapped[int] = mapped_column(
-        ForeignKey("ad_teams.id", ondelete="RESTRICT"), nullable=False
+        ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False
     )
     sprint_number: Mapped[int] = mapped_column(Integer, nullable=False)
     year: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -58,7 +45,7 @@ class Digest(Base):
         nullable=False,
     )
 
-    team: Mapped[Team] = relationship(back_populates="digests")
+    team: Mapped[Team] = relationship()
     features: Mapped[list["DigestFeature"]] = relationship(
         back_populates="digest",
         cascade="all, delete-orphan",
@@ -70,9 +57,6 @@ class DigestFeature(Base):
     __tablename__ = "ad_digest_features"
     __table_args__ = (
         CheckConstraint(
-            "category IN ('in_progress', 'upcoming')", name="ad_digest_features_category_chk"
-        ),
-        CheckConstraint(
             "status IN ('on_track', 'at_risk', 'blocked', 'complete', 'unknown')",
             name="ad_digest_features_status_chk",
         ),
@@ -82,7 +66,6 @@ class DigestFeature(Base):
     digest_id: Mapped[int] = mapped_column(
         ForeignKey("ad_digests.id", ondelete="CASCADE"), nullable=False
     )
-    category: Mapped[str] = mapped_column(String(20), nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     feature_name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")

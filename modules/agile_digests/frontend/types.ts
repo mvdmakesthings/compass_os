@@ -1,7 +1,5 @@
-export type Category = "in_progress" | "upcoming";
 export type Status = "on_track" | "at_risk" | "blocked" | "complete" | "unknown";
 
-export const CATEGORIES: Category[] = ["in_progress", "upcoming"];
 export const STATUSES: Status[] = ["on_track", "at_risk", "blocked", "complete", "unknown"];
 
 export const STATUS_LABELS: Record<Status, string> = {
@@ -10,11 +8,6 @@ export const STATUS_LABELS: Record<Status, string> = {
   blocked: "Blocked",
   complete: "Complete",
   unknown: "Unknown",
-};
-
-export const CATEGORY_LABELS: Record<Category, string> = {
-  in_progress: "In Progress / Under Warranty",
-  upcoming: "Upcoming Features",
 };
 
 export type Team = {
@@ -26,7 +19,6 @@ export type Team = {
 
 export type Feature = {
   id?: number;
-  category: Category;
   position?: number;
   feature_name: string;
   description: string;

@@ -3,30 +3,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Category = Literal["in_progress", "upcoming"]
+from modules.teams.backend.schemas import TeamOut
+
 Status = Literal["on_track", "at_risk", "blocked", "complete", "unknown"]
 
 
-class TeamIn(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
-
-
-class TeamPatch(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=120)
-    archived: bool | None = None
-
-
-class TeamOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    archived_at: datetime | None
-    created_at: datetime
-
-
 class FeatureIn(BaseModel):
-    category: Category
     feature_name: str = Field(min_length=1, max_length=200)
     description: str = ""
     business_value: str = ""
@@ -39,7 +21,6 @@ class FeatureOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    category: Category
     position: int
     feature_name: str
     description: str

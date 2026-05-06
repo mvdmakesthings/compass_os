@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -7,9 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from modules.teams.backend.models import Team
+from modules.teams.backend.schemas import TeamOut
 
 from . import embeddings
-from .models import Digest, DigestFeature, Team
+from .models import Digest, DigestFeature
 from .schemas import (
     DigestIn,
     DigestOut,
@@ -17,54 +17,9 @@ from .schemas import (
     FeatureOut,
     SearchHit,
     SearchIn,
-    TeamIn,
-    TeamOut,
-    TeamPatch,
 )
 
 router = APIRouter()
-
-
-# ---------- Teams ----------
-
-
-@router.get("/teams", response_model=list[TeamOut])
-async def list_teams(db: AsyncSession = Depends(get_db)) -> list[Team]:
-    result = await db.execute(select(Team).order_by(Team.name))
-    return list(result.scalars())
-
-
-@router.post("/teams", response_model=TeamOut, status_code=status.HTTP_201_CREATED)
-async def create_team(payload: TeamIn, db: AsyncSession = Depends(get_db)) -> Team:
-    team = Team(name=payload.name.strip())
-    db.add(team)
-    try:
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=409, detail="Team name already exists")
-    await db.refresh(team)
-    return team
-
-
-@router.patch("/teams/{team_id}", response_model=TeamOut)
-async def update_team(
-    team_id: int, payload: TeamPatch, db: AsyncSession = Depends(get_db)
-) -> Team:
-    team = await db.get(Team, team_id)
-    if team is None:
-        raise HTTPException(status_code=404, detail="Team not found")
-    if payload.name is not None:
-        team.name = payload.name.strip()
-    if payload.archived is not None:
-        team.archived_at = datetime.now(timezone.utc) if payload.archived else None
-    try:
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=409, detail="Team name already exists")
-    await db.refresh(team)
-    return team
 
 
 # ---------- Digests ----------
@@ -134,13 +89,9 @@ async def _build_digest(
 
     vectors = await _embed_features(payload.features)
     digest.features = []
-    counters: dict[str, int] = {"in_progress": 0, "upcoming": 0}
-    for f, vec in zip(payload.features, vectors, strict=True):
-        position = counters[f.category]
-        counters[f.category] += 1
+    for position, (f, vec) in enumerate(zip(payload.features, vectors, strict=True)):
         digest.features.append(
             DigestFeature(
-                category=f.category,
                 position=position,
                 feature_name=f.feature_name,
                 description=f.description,
@@ -212,7 +163,7 @@ async def _load_digest_out(digest_id: int, db: AsyncSession) -> DigestOut:
     digest = result.scalar_one_or_none()
     if digest is None:
         raise HTTPException(status_code=404, detail="Digest not found")
-    features = sorted(digest.features, key=lambda f: (f.category, f.position))
+    features = sorted(digest.features, key=lambda f: f.position)
     return DigestOut(
         id=digest.id,
         team=TeamOut.model_validate(digest.team),

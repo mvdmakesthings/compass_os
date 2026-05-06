@@ -20,9 +20,6 @@ import { DataCard, PageHeader } from "@/components/ui";
 import { apiGet, apiPost, apiPut } from "@/lib/api";
 
 import {
-  CATEGORIES,
-  CATEGORY_LABELS,
-  type Category,
   type Digest,
   type DigestPayload,
   type Feature,
@@ -33,8 +30,7 @@ import { TeamPicker } from "./TeamPicker";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-const blankFeature = (category: Category): Feature => ({
-  category,
+const blankFeature = (): Feature => ({
   feature_name: "",
   description: "",
   business_value: "",
@@ -61,7 +57,6 @@ export function DigestForm({ digestId, initial }: Props) {
   const [footerNotes, setFooterNotes] = useState<string>(initial?.footer_notes ?? "");
   const [features, setFeatures] = useState<Feature[]>(
     initial?.features.map((f) => ({
-      category: f.category,
       feature_name: f.feature_name,
       description: f.description,
       business_value: f.business_value,
@@ -74,13 +69,13 @@ export function DigestForm({ digestId, initial }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiGet<Team[]>("/agile_digests/teams")
+    apiGet<Team[]>("/teams/teams")
       .then(setTeams)
       .catch(() => setTeams([]));
   }, []);
 
-  function addFeature(category: Category) {
-    setFeatures((fs) => [...fs, blankFeature(category)]);
+  function addFeature() {
+    setFeatures((fs) => [...fs, blankFeature()]);
   }
 
   function updateFeature(index: number, next: Feature) {
@@ -93,14 +88,8 @@ export function DigestForm({ digestId, initial }: Props) {
 
   function moveFeature(index: number, dir: -1 | 1) {
     setFeatures((fs) => {
-      const cat = fs[index].category;
-      const sameCatIndices = fs
-        .map((f, i) => (f.category === cat ? i : -1))
-        .filter((i) => i >= 0);
-      const posInCat = sameCatIndices.indexOf(index);
-      const swapWithCat = posInCat + dir;
-      if (swapWithCat < 0 || swapWithCat >= sameCatIndices.length) return fs;
-      const swapIndex = sameCatIndices[swapWithCat];
+      const swapIndex = index + dir;
+      if (swapIndex < 0 || swapIndex >= fs.length) return fs;
       const next = [...fs];
       [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
       return next;
@@ -193,49 +182,37 @@ export function DigestForm({ digestId, initial }: Props) {
         </Stack>
       </DataCard>
 
-      {CATEGORIES.map((cat) => {
-        const inCat = features
-          .map((f, i) => ({ f, i }))
-          .filter((x) => x.f.category === cat);
-        return (
-          <DataCard
-            key={cat}
-            title={CATEGORY_LABELS[cat]}
-            actions={
-              <Button
-                size="xs"
-                variant="light"
-                leftSection={<IconPlus size={12} />}
-                onClick={() => addFeature(cat)}
-              >
-                Add feature
-              </Button>
-            }
+      <DataCard
+        title="Features"
+        actions={
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconPlus size={12} />}
+            onClick={() => addFeature()}
           >
-            <Stack gap="sm">
-              {inCat.length === 0 && (
-                <Text size="sm" c="dimmed" fs="italic">
-                  No features.
-                </Text>
-              )}
-              {inCat.map(({ f, i }, posInCat) => (
-                <FeatureRow
-                  key={i}
-                  feature={f}
-                  onChange={(next) => updateFeature(i, next)}
-                  onRemove={() => removeFeature(i)}
-                  onMoveUp={posInCat > 0 ? () => moveFeature(i, -1) : null}
-                  onMoveDown={
-                    posInCat < inCat.length - 1
-                      ? () => moveFeature(i, 1)
-                      : null
-                  }
-                />
-              ))}
-            </Stack>
-          </DataCard>
-        );
-      })}
+            Add feature
+          </Button>
+        }
+      >
+        <Stack gap="sm">
+          {features.length === 0 && (
+            <Text size="sm" c="dimmed" fs="italic">
+              No features.
+            </Text>
+          )}
+          {features.map((f, i) => (
+            <FeatureRow
+              key={i}
+              feature={f}
+              onChange={(next) => updateFeature(i, next)}
+              onRemove={() => removeFeature(i)}
+              onMoveUp={i > 0 ? () => moveFeature(i, -1) : null}
+              onMoveDown={i < features.length - 1 ? () => moveFeature(i, 1) : null}
+            />
+          ))}
+        </Stack>
+      </DataCard>
 
       <DataCard title="Footer notes">
         <Textarea

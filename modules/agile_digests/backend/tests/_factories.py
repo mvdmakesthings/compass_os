@@ -5,7 +5,6 @@ from typing import Any
 
 def feature(
     *,
-    category: str = "in_progress",
     feature_name: str = "Retention Mailer",
     description: str = "Cloud-native Retention Mailer replacing legacy on-prem.",
     business_value: str = "Eliminates downtime risk tied to legacy infrastructure.",
@@ -14,7 +13,6 @@ def feature(
     notes: str = "Key defects resolved; ready for validation.",
 ) -> dict[str, Any]:
     return {
-        "category": category,
         "feature_name": feature_name,
         "description": description,
         "business_value": business_value,
@@ -46,6 +44,6 @@ def digest_payload(
 
 
 async def create_team(client, name: str = "BloodHound") -> int:
-    r = await client.post("/agile_digests/teams", json={"name": name})
+    r = await client.post("/teams/teams", json={"name": name})
     assert r.status_code == 201, r.text
     return r.json()["id"]

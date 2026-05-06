@@ -6,9 +6,9 @@ async def test_create_digest_with_features(client):
     payload = digest_payload(
         team_id=team_id,
         features=[
-            feature(category="in_progress", feature_name="Retention Mailer"),
-            feature(category="in_progress", feature_name="Retention Call Scheduler"),
-            feature(category="upcoming", feature_name="ExamOne API Modernization"),
+            feature(feature_name="Retention Mailer"),
+            feature(feature_name="Retention Call Scheduler"),
+            feature(feature_name="ExamOne API Modernization"),
         ],
     )
     r = await client.post("/agile_digests/digests", json=payload)
@@ -18,10 +18,12 @@ async def test_create_digest_with_features(client):
     assert body["sprint_number"] == 8
     assert body["year"] == 2026
     assert len(body["features"]) == 3
-    in_progress = [f for f in body["features"] if f["category"] == "in_progress"]
-    upcoming = [f for f in body["features"] if f["category"] == "upcoming"]
-    assert [f["position"] for f in in_progress] == [0, 1]
-    assert [f["position"] for f in upcoming] == [0]
+    assert [f["position"] for f in body["features"]] == [0, 1, 2]
+    assert [f["feature_name"] for f in body["features"]] == [
+        "Retention Mailer",
+        "Retention Call Scheduler",
+        "ExamOne API Modernization",
+    ]
 
 
 async def test_create_digest_unknown_team_400(client):
@@ -53,20 +55,16 @@ async def test_create_digest_validation_errors(client):
     )
     r = await client.post("/agile_digests/digests", json=bad)
     assert r.status_code == 422
-    # invalid category
-    bad = digest_payload(team_id=team_id, features=[feature(category="someday")])
-    r = await client.post("/agile_digests/digests", json=bad)
-    assert r.status_code == 422
 
 
-async def test_get_digest_returns_grouped_features(client):
+async def test_get_digest_returns_features_in_payload_order(client):
     team_id = await create_team(client)
     payload = digest_payload(
         team_id=team_id,
         features=[
-            feature(category="upcoming", feature_name="A"),
-            feature(category="in_progress", feature_name="B"),
-            feature(category="in_progress", feature_name="C"),
+            feature(feature_name="A"),
+            feature(feature_name="B"),
+            feature(feature_name="C"),
         ],
     )
     create = await client.post("/agile_digests/digests", json=payload)
@@ -75,11 +73,8 @@ async def test_get_digest_returns_grouped_features(client):
     r = await client.get(f"/agile_digests/digests/{digest_id}")
     assert r.status_code == 200
     body = r.json()
-    by_cat: dict[str, list[str]] = {"in_progress": [], "upcoming": []}
-    for f in body["features"]:
-        by_cat[f["category"]].append(f["feature_name"])
-    assert by_cat["in_progress"] == ["B", "C"]
-    assert by_cat["upcoming"] == ["A"]
+    assert [f["feature_name"] for f in body["features"]] == ["A", "B", "C"]
+    assert [f["position"] for f in body["features"]] == [0, 1, 2]
 
 
 async def test_get_unknown_digest_404(client):

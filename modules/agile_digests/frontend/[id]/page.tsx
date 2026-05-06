@@ -23,7 +23,7 @@ import { DataCard, PageHeader } from "@/components/ui";
 import { apiDelete, apiGet } from "@/lib/api";
 
 import { StatusBadge } from "../components/StatusBadge";
-import { CATEGORY_LABELS, type Category, type Digest } from "../types";
+import { type Digest } from "../types";
 
 export default function DigestDetailPage() {
   const params = useParams<{ id: string }>();
@@ -80,11 +80,6 @@ export default function DigestDetailPage() {
       </Group>
     );
 
-  const byCategory: Record<Category, typeof digest.features> = {
-    in_progress: digest.features.filter((f) => f.category === "in_progress"),
-    upcoming: digest.features.filter((f) => f.category === "upcoming"),
-  };
-
   return (
     <Stack gap="lg">
       <PageHeader
@@ -127,68 +122,66 @@ export default function DigestDetailPage() {
         </DataCard>
       )}
 
-      {(["in_progress", "upcoming"] as Category[]).map((cat) => (
-        <DataCard key={cat} title={CATEGORY_LABELS[cat]}>
-          {byCategory[cat].length === 0 ? (
-            <Text size="sm" c="dimmed" fs="italic">
-              None.
-            </Text>
-          ) : (
-            <Table.ScrollContainer minWidth={720}>
-              <Table
-                verticalSpacing="xs"
-                horizontalSpacing="sm"
-                withRowBorders
-                striped
-                highlightOnHover
-              >
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Feature</Table.Th>
-                    <Table.Th>Description</Table.Th>
-                    <Table.Th>Business value</Table.Th>
-                    <Table.Th>Target go live</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>Notes</Table.Th>
+      <DataCard title="Features">
+        {digest.features.length === 0 ? (
+          <Text size="sm" c="dimmed" fs="italic">
+            None.
+          </Text>
+        ) : (
+          <Table.ScrollContainer minWidth={720}>
+            <Table
+              verticalSpacing="xs"
+              horizontalSpacing="sm"
+              withRowBorders
+              striped
+              highlightOnHover
+            >
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Feature</Table.Th>
+                  <Table.Th>Description</Table.Th>
+                  <Table.Th>Business value</Table.Th>
+                  <Table.Th>Target go live</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>Notes</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {digest.features.map((f) => (
+                  <Table.Tr key={f.id} style={{ verticalAlign: "top" }}>
+                    <Table.Td>
+                      <Text size="sm" fw={500}>
+                        {f.feature_name}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                        {f.description}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                        {f.business_value}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{f.target_go_live}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <StatusBadge status={f.status} />
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                        {f.notes}
+                      </Text>
+                    </Table.Td>
                   </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {byCategory[cat].map((f) => (
-                    <Table.Tr key={f.id} style={{ verticalAlign: "top" }}>
-                      <Table.Td>
-                        <Text size="sm" fw={500}>
-                          {f.feature_name}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-                          {f.description}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-                          {f.business_value}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{f.target_go_live}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <StatusBadge status={f.status} />
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-                          {f.notes}
-                        </Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          )}
-        </DataCard>
-      ))}
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        )}
+      </DataCard>
 
       {digest.footer_notes && (
         <DataCard title="Footer notes">

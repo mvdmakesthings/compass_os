@@ -10,7 +10,6 @@ async def test_search_returns_ranked_hits(client):
             features=[
                 feature(feature_name="Retention Mailer", description="email mailer"),
                 feature(
-                    category="upcoming",
                     feature_name="ACORD Phase 1 Inbound Processing",
                     description="ACORD ingestion via S3 and DynamoDB.",
                 ),

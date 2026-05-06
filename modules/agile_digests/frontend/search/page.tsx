@@ -19,7 +19,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { apiPost } from "@/lib/api";
 
 import { StatusBadge } from "../components/StatusBadge";
-import { CATEGORY_LABELS, type SearchHit } from "../types";
+import { type SearchHit } from "../types";
 
 export default function SearchPage() {
   const [q, setQ] = useState("");
@@ -109,7 +109,7 @@ export default function SearchPage() {
                   </Text>
                   <Text size="xs" c="dimmed">
                     {hit.digest.team.name} · Sprint {hit.digest.sprint_number} of{" "}
-                    {hit.digest.year} · {CATEGORY_LABELS[hit.feature.category]}
+                    {hit.digest.year}
                   </Text>
                 </Stack>
                 <Stack gap={4} align="flex-end">
