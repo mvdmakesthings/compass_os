@@ -2,6 +2,7 @@
 
 import {
   Alert,
+  Anchor,
   Button,
   Group,
   Loader,
@@ -13,6 +14,7 @@ import { modals } from "@mantine/modals";
 import {
   IconAlertTriangle,
   IconEdit,
+  IconExternalLink,
   IconTrash,
 } from "@tabler/icons-react";
 import Link from "next/link";
@@ -43,7 +45,8 @@ export default function DigestDetailPage() {
       title: "Delete digest",
       children: (
         <Text size="sm">
-          This permanently removes the digest and its features. Continue?
+          This permanently removes the digest and its sprint updates. The
+          underlying features remain. Continue?
         </Text>
       ),
       labels: { confirm: "Delete", cancel: "Cancel" },
@@ -123,7 +126,7 @@ export default function DigestDetailPage() {
       )}
 
       <DataCard title="Features">
-        {digest.features.length === 0 ? (
+        {digest.updates.length === 0 ? (
           <Text size="sm" c="dimmed" fs="italic">
             None.
           </Text>
@@ -143,36 +146,54 @@ export default function DigestDetailPage() {
                   <Table.Th>Business value</Table.Th>
                   <Table.Th>Target go live</Table.Th>
                   <Table.Th>Status</Table.Th>
-                  <Table.Th>Notes</Table.Th>
+                  <Table.Th>Sprint update</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {digest.features.map((f) => (
-                  <Table.Tr key={f.id} style={{ verticalAlign: "top" }}>
+                {digest.updates.map((u) => (
+                  <Table.Tr key={u.id} style={{ verticalAlign: "top" }}>
                     <Table.Td>
-                      <Text size="sm" fw={500}>
-                        {f.feature_name}
+                      <Group gap={4} wrap="nowrap" align="center">
+                        <Text size="sm" fw={500}>
+                          {u.feature.name}
+                        </Text>
+                        {u.feature.archived_at && (
+                          <Text size="xs" c="dimmed">
+                            (archived)
+                          </Text>
+                        )}
+                        {u.feature.jira_link && (
+                          <Anchor
+                            href={u.feature.jira_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Open Jira ticket"
+                            display="inline-flex"
+                          >
+                            <IconExternalLink size={14} />
+                          </Anchor>
+                        )}
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                        {u.feature.description}
                       </Text>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-                        {f.description}
+                        {u.feature.business_value}
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-                        {f.business_value}
-                      </Text>
+                      <Text size="sm">{u.target_go_live}</Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm">{f.target_go_live}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <StatusBadge status={f.status} />
+                      <StatusBadge status={u.status} />
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-                        {f.notes}
+                        {u.notes}
                       </Text>
                     </Table.Td>
                   </Table.Tr>

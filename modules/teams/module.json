@@ -1,0 +1,5 @@
+{
+  "name": "teams",
+  "version": "0.1.0",
+  "nav": [{ "label": "Teams", "href": "/teams" }]
+}

@@ -38,10 +38,9 @@ def encode_many(texts: Iterable[str]) -> list[list[float]]:
 
 def feature_text(
     *,
-    feature_name: str,
+    name: str,
     description: str,
     business_value: str,
-    notes: str,
 ) -> str:
-    parts = [feature_name, description, business_value, notes]
+    parts = [name, description, business_value]
     return "\n".join(p for p in parts if p)

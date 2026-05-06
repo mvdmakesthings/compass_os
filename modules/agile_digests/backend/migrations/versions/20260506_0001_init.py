@@ -12,7 +12,7 @@ from alembic import op
 from pgvector.sqlalchemy import Vector
 
 revision: str = "ad_0001_init"
-down_revision: Union[str, None] = None
+down_revision: Union[str, None] = "teams_0001_init"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -21,25 +21,12 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     op.create_table(
-        "ad_teams",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("name", sa.String(length=120), nullable=False, unique=True),
-        sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-    )
-
-    op.create_table(
         "ad_digests",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column(
             "team_id",
             sa.Integer(),
-            sa.ForeignKey("ad_teams.id", ondelete="RESTRICT"),
+            sa.ForeignKey("teams.id", ondelete="RESTRICT"),
             nullable=False,
         ),
         sa.Column("sprint_number", sa.Integer(), nullable=False),
@@ -123,4 +110,3 @@ def downgrade() -> None:
     op.drop_index("ix_ad_digests_year", table_name="ad_digests")
     op.drop_index("ix_ad_digests_team_id", table_name="ad_digests")
     op.drop_table("ad_digests")
-    op.drop_table("ad_teams")

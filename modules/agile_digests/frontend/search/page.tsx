@@ -11,7 +11,11 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { IconAlertTriangle, IconSearch } from "@tabler/icons-react";
+import {
+  IconAlertTriangle,
+  IconExternalLink,
+  IconSearch,
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -50,9 +54,9 @@ export default function SearchPage() {
   return (
     <Stack gap="lg">
       <PageHeader
-        title="Search digests"
+        title="Search features"
         description={
-          <Anchor href="/agile_digests" size="sm">
+          <Anchor component={Link} href="/agile_digests" size="sm">
             ← Back to digests
           </Anchor>
         }
@@ -62,7 +66,7 @@ export default function SearchPage() {
         <Group gap="xs">
           <TextInput
             autoFocus
-            placeholder="Search across digest features…"
+            placeholder="Search across team features…"
             value={q}
             onChange={(e) => setQ(e.currentTarget.value)}
             leftSection={<IconSearch size={14} />}
@@ -88,44 +92,76 @@ export default function SearchPage() {
       {searched && hits.length === 0 && !searching ? (
         <EmptyState
           title="No results"
-          description="Try different keywords or remove filters."
+          description="Try different keywords."
         />
       ) : (
         <Stack gap="xs">
-          {hits.map((hit) => (
-            <Card
-              key={hit.feature.id}
-              component={Link}
-              href={`/agile_digests/${hit.digest.id}`}
-              withBorder
-              radius="sm"
-              padding="sm"
-              style={{ textDecoration: "none" }}
-            >
-              <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Stack gap={2}>
-                  <Text size="sm" fw={500} c="bright">
-                    {hit.feature.feature_name}
+          {hits.map((hit) => {
+            const href = hit.latest_update
+              ? `/agile_digests/${hit.latest_update.digest_id}`
+              : `/agile_digests/teams/${hit.team.id}/features`;
+            return (
+              <Card
+                key={hit.feature.id}
+                component={Link}
+                href={href}
+                withBorder
+                radius="sm"
+                padding="sm"
+                style={{ textDecoration: "none" }}
+              >
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                  <Stack gap={2}>
+                    <Group gap={4} wrap="nowrap" align="center">
+                      <Text size="sm" fw={500} c="bright">
+                        {hit.feature.name}
+                      </Text>
+                      {hit.feature.archived_at && (
+                        <Text size="xs" c="dimmed">
+                          (archived)
+                        </Text>
+                      )}
+                      {hit.feature.jira_link && (
+                        <Anchor
+                          href={hit.feature.jira_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="Open Jira ticket"
+                          display="inline-flex"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <IconExternalLink size={14} />
+                        </Anchor>
+                      )}
+                    </Group>
+                    <Text size="xs" c="dimmed">
+                      {hit.team.name}
+                      {hit.latest_update &&
+                        ` · last seen Sprint ${hit.latest_update.sprint_number} of ${hit.latest_update.year}`}
+                    </Text>
+                  </Stack>
+                  <Stack gap={4} align="flex-end">
+                    {hit.latest_update && (
+                      <StatusBadge status={hit.latest_update.status} />
+                    )}
+                    <Badge size="xs" variant="default" radius="sm">
+                      score {hit.score.toFixed(3)}
+                    </Badge>
+                  </Stack>
+                </Group>
+                {hit.feature.description && (
+                  <Text size="sm" c="dimmed" mt="xs" lineClamp={2}>
+                    {hit.feature.description}
                   </Text>
-                  <Text size="xs" c="dimmed">
-                    {hit.digest.team.name} · Sprint {hit.digest.sprint_number} of{" "}
-                    {hit.digest.year}
+                )}
+                {hit.latest_update?.notes && (
+                  <Text size="sm" mt={4} lineClamp={2}>
+                    {hit.latest_update.notes}
                   </Text>
-                </Stack>
-                <Stack gap={4} align="flex-end">
-                  <StatusBadge status={hit.feature.status} />
-                  <Badge size="xs" variant="default" radius="sm">
-                    score {hit.score.toFixed(3)}
-                  </Badge>
-                </Stack>
-              </Group>
-              {hit.feature.description && (
-                <Text size="sm" c="dimmed" mt="xs" lineClamp={2}>
-                  {hit.feature.description}
-                </Text>
-              )}
-            </Card>
-          ))}
+                )}
+              </Card>
+            );
+          })}
         </Stack>
       )}
     </Stack>

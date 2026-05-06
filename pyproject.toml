@@ -7,6 +7,7 @@ addopts = [
     "--cov=backend/app",
     "--cov=modules/agile_digests/backend",
     "--cov=modules/hello/backend",
+    "--cov=modules/teams/backend",
     "--cov-config=backend/.coveragerc",
     "--cov-report=term-missing",
 ]

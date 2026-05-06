@@ -11,20 +11,18 @@ from modules.agile_digests.backend import embeddings
 
 def test_feature_text_joins_non_empty_fields():
     out = embeddings.feature_text(
-        feature_name="A",
+        name="A",
         description="B",
-        business_value="",
-        notes="C",
+        business_value="C",
     )
     assert out == "A\nB\nC"
 
 
 def test_feature_text_with_all_empty_returns_empty_string():
     out = embeddings.feature_text(
-        feature_name="",
+        name="",
         description="",
         business_value="",
-        notes="",
     )
     assert out == ""
 

@@ -1,25 +1,33 @@
-from ._factories import create_team, digest_payload, feature
+from ._factories import (
+    create_feature,
+    create_team,
+    digest_payload,
+    update_payload,
+)
 
 
-async def test_create_digest_with_features(client):
+async def test_create_digest_with_updates(client):
     team_id = await create_team(client)
+    f1 = await create_feature(client, team_id=team_id, name="Retention Mailer")
+    f2 = await create_feature(client, team_id=team_id, name="Retention Call Scheduler")
+    f3 = await create_feature(client, team_id=team_id, name="ExamOne API Modernization")
     payload = digest_payload(
         team_id=team_id,
-        features=[
-            feature(feature_name="Retention Mailer"),
-            feature(feature_name="Retention Call Scheduler"),
-            feature(feature_name="ExamOne API Modernization"),
+        updates=[
+            update_payload(feature_id=f1),
+            update_payload(feature_id=f2),
+            update_payload(feature_id=f3),
         ],
     )
     r = await client.post("/agile_digests/digests", json=payload)
-    assert r.status_code == 201
+    assert r.status_code == 201, r.text
     body = r.json()
     assert body["team"]["id"] == team_id
     assert body["sprint_number"] == 8
     assert body["year"] == 2026
-    assert len(body["features"]) == 3
-    assert [f["position"] for f in body["features"]] == [0, 1, 2]
-    assert [f["feature_name"] for f in body["features"]] == [
+    assert len(body["updates"]) == 3
+    assert [u["position"] for u in body["updates"]] == [0, 1, 2]
+    assert [u["feature"]["name"] for u in body["updates"]] == [
         "Retention Mailer",
         "Retention Call Scheduler",
         "ExamOne API Modernization",
@@ -39,32 +47,67 @@ async def test_create_digest_duplicate_sprint_409(client):
     assert r.status_code == 409
 
 
-async def test_create_digest_with_empty_features(client):
+async def test_create_digest_with_empty_updates(client):
     team_id = await create_team(client)
-    payload = digest_payload(team_id=team_id, features=[])
-    r = await client.post("/agile_digests/digests", json=payload)
+    r = await client.post("/agile_digests/digests", json=digest_payload(team_id=team_id))
     assert r.status_code == 201
-    assert r.json()["features"] == []
+    assert r.json()["updates"] == []
 
 
 async def test_create_digest_validation_errors(client):
     team_id = await create_team(client)
-    # invalid status
+    fid = await create_feature(client, team_id=team_id)
     bad = digest_payload(
-        team_id=team_id, features=[feature(status="exploded")]
+        team_id=team_id,
+        updates=[update_payload(feature_id=fid, status="exploded")],
     )
     r = await client.post("/agile_digests/digests", json=bad)
     assert r.status_code == 422
 
 
-async def test_get_digest_returns_features_in_payload_order(client):
+async def test_create_digest_rejects_unknown_feature(client):
     team_id = await create_team(client)
+    bad = digest_payload(
+        team_id=team_id, updates=[update_payload(feature_id=9999)]
+    )
+    r = await client.post("/agile_digests/digests", json=bad)
+    assert r.status_code == 400
+
+
+async def test_create_digest_rejects_other_team_feature(client):
+    a = await create_team(client, "A")
+    b = await create_team(client, "B")
+    fid = await create_feature(client, team_id=a)
+    bad = digest_payload(team_id=b, updates=[update_payload(feature_id=fid)])
+    r = await client.post("/agile_digests/digests", json=bad)
+    assert r.status_code == 400
+
+
+async def test_create_digest_rejects_duplicate_feature(client):
+    team_id = await create_team(client)
+    fid = await create_feature(client, team_id=team_id)
+    bad = digest_payload(
+        team_id=team_id,
+        updates=[
+            update_payload(feature_id=fid),
+            update_payload(feature_id=fid, notes="dup"),
+        ],
+    )
+    r = await client.post("/agile_digests/digests", json=bad)
+    assert r.status_code == 400
+
+
+async def test_get_digest_returns_updates_in_payload_order(client):
+    team_id = await create_team(client)
+    fa = await create_feature(client, team_id=team_id, name="A")
+    fb = await create_feature(client, team_id=team_id, name="B")
+    fc = await create_feature(client, team_id=team_id, name="C")
     payload = digest_payload(
         team_id=team_id,
-        features=[
-            feature(feature_name="A"),
-            feature(feature_name="B"),
-            feature(feature_name="C"),
+        updates=[
+            update_payload(feature_id=fa),
+            update_payload(feature_id=fb),
+            update_payload(feature_id=fc),
         ],
     )
     create = await client.post("/agile_digests/digests", json=payload)
@@ -73,8 +116,8 @@ async def test_get_digest_returns_features_in_payload_order(client):
     r = await client.get(f"/agile_digests/digests/{digest_id}")
     assert r.status_code == 200
     body = r.json()
-    assert [f["feature_name"] for f in body["features"]] == ["A", "B", "C"]
-    assert [f["position"] for f in body["features"]] == [0, 1, 2]
+    assert [u["feature"]["name"] for u in body["updates"]] == ["A", "B", "C"]
+    assert [u["position"] for u in body["updates"]] == [0, 1, 2]
 
 
 async def test_get_unknown_digest_404(client):
@@ -124,33 +167,46 @@ async def test_list_digests_filters_by_team_and_year(client):
 
 async def test_list_digests_includes_feature_count(client):
     team_id = await create_team(client)
+    fids = [
+        await create_feature(client, team_id=team_id, name=f"F{i}") for i in range(4)
+    ]
     payload = digest_payload(
-        team_id=team_id,
-        features=[feature(feature_name=f"F{i}") for i in range(4)],
+        team_id=team_id, updates=[update_payload(feature_id=fid) for fid in fids]
     )
     await client.post("/agile_digests/digests", json=payload)
     r = await client.get("/agile_digests/digests")
     assert r.json()[0]["feature_count"] == 4
 
 
-async def test_update_digest_replaces_features(client):
+async def test_update_digest_replaces_updates(client):
     team_id = await create_team(client)
+    f_old1 = await create_feature(client, team_id=team_id, name="old1")
+    f_old2 = await create_feature(client, team_id=team_id, name="old2")
+    f_new = await create_feature(client, team_id=team_id, name="new1")
+
     create = await client.post(
         "/agile_digests/digests",
-        json=digest_payload(team_id=team_id, features=[feature(feature_name="old1"), feature(feature_name="old2")]),
+        json=digest_payload(
+            team_id=team_id,
+            updates=[
+                update_payload(feature_id=f_old1),
+                update_payload(feature_id=f_old2),
+            ],
+        ),
     )
     digest_id = create.json()["id"]
 
     new_payload = digest_payload(
         team_id=team_id,
-        features=[feature(feature_name="new1", status="at_risk")],
+        updates=[update_payload(feature_id=f_new, status="at_risk")],
         header_notes="UPDATED",
     )
     r = await client.put(f"/agile_digests/digests/{digest_id}", json=new_payload)
-    assert r.status_code == 200
-    assert r.json()["header_notes"] == "UPDATED"
-    assert [f["feature_name"] for f in r.json()["features"]] == ["new1"]
-    assert r.json()["features"][0]["status"] == "at_risk"
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["header_notes"] == "UPDATED"
+    assert [u["feature"]["name"] for u in body["updates"]] == ["new1"]
+    assert body["updates"][0]["status"] == "at_risk"
 
 
 async def test_update_digest_unknown_team_400(client):
@@ -179,11 +235,11 @@ async def test_update_digest_to_clashing_sprint_409(client):
         "/agile_digests/digests",
         json=digest_payload(team_id=team_id, sprint_number=1),
     )
+    assert a.status_code == 201
     b = await client.post(
         "/agile_digests/digests",
         json=digest_payload(team_id=team_id, sprint_number=2),
     )
-    # Try to make `b` use sprint 1, which collides with `a`.
     r = await client.put(
         f"/agile_digests/digests/{b.json()['id']}",
         json=digest_payload(team_id=team_id, sprint_number=1),
@@ -208,19 +264,26 @@ async def test_delete_unknown_digest_404(client):
     assert r.status_code == 404
 
 
-async def test_delete_digest_cascades_features(client, db):
+async def test_delete_digest_cascades_updates_but_keeps_features(client, db):
     from sqlalchemy import select
 
-    from modules.agile_digests.backend.models import DigestFeature
+    from modules.agile_digests.backend.models import DigestUpdate, Feature
 
     team_id = await create_team(client)
+    f1 = await create_feature(client, team_id=team_id, name="F1")
+    f2 = await create_feature(client, team_id=team_id, name="F2")
     create = await client.post(
         "/agile_digests/digests",
-        json=digest_payload(team_id=team_id, features=[feature(), feature(feature_name="F2")]),
+        json=digest_payload(
+            team_id=team_id,
+            updates=[update_payload(feature_id=f1), update_payload(feature_id=f2)],
+        ),
     )
     digest_id = create.json()["id"]
 
     await client.delete(f"/agile_digests/digests/{digest_id}")
 
-    rows = (await db.execute(select(DigestFeature))).scalars().all()
-    assert rows == []
+    updates = (await db.execute(select(DigestUpdate))).scalars().all()
+    assert updates == []
+    feature_ids = (await db.execute(select(Feature.id))).scalars().all()
+    assert set(feature_ids) == {f1, f2}

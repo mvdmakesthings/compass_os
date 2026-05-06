@@ -1,19 +1,26 @@
-from ._factories import create_team, digest_payload, feature
+from ._factories import (
+    create_feature,
+    create_team,
+    digest_payload,
+    update_payload,
+)
 
 
 async def test_search_returns_ranked_hits(client):
     team_id = await create_team(client)
+    await create_feature(
+        client, team_id=team_id, name="Retention Mailer", description="email mailer"
+    )
+    fid = await create_feature(
+        client,
+        team_id=team_id,
+        name="ACORD Phase 1 Inbound Processing",
+        description="ACORD ingestion via S3 and DynamoDB.",
+    )
     await client.post(
         "/agile_digests/digests",
         json=digest_payload(
-            team_id=team_id,
-            features=[
-                feature(feature_name="Retention Mailer", description="email mailer"),
-                feature(
-                    feature_name="ACORD Phase 1 Inbound Processing",
-                    description="ACORD ingestion via S3 and DynamoDB.",
-                ),
-            ],
+            team_id=team_id, updates=[update_payload(feature_id=fid, notes="latest")]
         ),
     )
 
@@ -22,61 +29,46 @@ async def test_search_returns_ranked_hits(client):
     )
     assert r.status_code == 200
     hits = r.json()
-    assert hits, "Expected at least one hit"
-    assert hits[0]["feature"]["feature_name"] == "ACORD Phase 1 Inbound Processing"
+    assert hits
+    assert hits[0]["feature"]["name"] == "ACORD Phase 1 Inbound Processing"
+    assert hits[0]["latest_update"]["notes"] == "latest"
     for hit in hits:
         assert 0.0 <= hit["score"] <= 1.0001
-        assert hit["digest"]["team"]["name"] == "BloodHound"
+        assert hit["team"]["name"] == "BloodHound"
 
 
-async def test_search_filters_by_team_and_year(client):
+async def test_search_filters_by_team(client):
     a = await create_team(client, "A")
     b = await create_team(client, "B")
-    await client.post(
-        "/agile_digests/digests",
-        json=digest_payload(
-            team_id=a,
-            year=2025,
-            sprint_number=1,
-            digest_date="2025-04-01",
-            features=[feature(feature_name="Foo")],
-        ),
-    )
-    await client.post(
-        "/agile_digests/digests",
-        json=digest_payload(
-            team_id=b,
-            year=2026,
-            sprint_number=1,
-            digest_date="2026-04-01",
-            features=[feature(feature_name="Foo")],
-        ),
-    )
+    await create_feature(client, team_id=a, name="Foo A")
+    await create_feature(client, team_id=b, name="Foo B")
 
     by_team = await client.post(
         "/agile_digests/digests/search", json={"q": "Foo", "team_id": a}
     )
-    assert {h["digest"]["team"]["id"] for h in by_team.json()} == {a}
-
-    by_year = await client.post(
-        "/agile_digests/digests/search", json={"q": "Foo", "year": 2026}
-    )
-    assert {h["digest"]["year"] for h in by_year.json()} == {2026}
+    assert {h["team"]["id"] for h in by_team.json()} == {a}
 
 
 async def test_search_top_k_caps_results(client):
     team_id = await create_team(client)
-    await client.post(
-        "/agile_digests/digests",
-        json=digest_payload(
-            team_id=team_id,
-            features=[feature(feature_name=f"F{i}") for i in range(5)],
-        ),
-    )
+    for i in range(5):
+        await create_feature(client, team_id=team_id, name=f"F{i}")
     r = await client.post(
         "/agile_digests/digests/search", json={"q": "feature", "top_k": 2}
     )
     assert len(r.json()) == 2
+
+
+async def test_search_returns_feature_without_updates(client):
+    team_id = await create_team(client)
+    await create_feature(client, team_id=team_id, name="Lonely feature")
+    r = await client.post(
+        "/agile_digests/digests/search", json={"q": "lonely"}
+    )
+    assert r.status_code == 200
+    hits = r.json()
+    assert hits
+    assert hits[0]["latest_update"] is None
 
 
 async def test_search_validates_query(client):

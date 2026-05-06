@@ -2,11 +2,13 @@
 
 import {
   ActionIcon,
+  Anchor,
   Card,
   Group,
   Select,
   SimpleGrid,
   Stack,
+  Text,
   Textarea,
   TextInput,
   Tooltip,
@@ -14,14 +16,21 @@ import {
 import {
   IconArrowDown,
   IconArrowUp,
+  IconExternalLink,
   IconTrash,
 } from "@tabler/icons-react";
 
-import { STATUSES, STATUS_LABELS, type Feature } from "../types";
+import {
+  STATUSES,
+  STATUS_LABELS,
+  type DigestUpdatePayload,
+  type Feature,
+} from "../types";
 
 type Props = {
-  feature: Feature;
-  onChange: (next: Feature) => void;
+  feature: Feature | undefined;
+  update: DigestUpdatePayload;
+  onPatch: (patch: Partial<DigestUpdatePayload>) => void;
   onRemove: () => void;
   onMoveUp: (() => void) | null;
   onMoveDown: (() => void) | null;
@@ -29,32 +38,51 @@ type Props = {
 
 const STATUS_OPTIONS = STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }));
 
-export function FeatureRow({
+export function UpdateRow({
   feature,
-  onChange,
+  update,
+  onPatch,
   onRemove,
   onMoveUp,
   onMoveDown,
 }: Props) {
-  function patch<K extends keyof Feature>(key: K, value: Feature[K]) {
-    onChange({ ...feature, [key]: value });
-  }
-
   return (
     <Card withBorder radius="sm" padding="sm">
       <Stack gap="xs">
         <Group gap="xs" wrap="nowrap" align="flex-end">
-          <TextInput
-            placeholder="Feature name"
-            value={feature.feature_name}
-            onChange={(e) => patch("feature_name", e.currentTarget.value)}
-            style={{ flex: 1 }}
-          />
+          <Stack gap={2} style={{ flex: 1 }}>
+            <Group gap={4} wrap="nowrap" align="center">
+              <Text size="sm" fw={500}>
+                {feature?.name ?? `(missing feature #${update.feature_id})`}
+              </Text>
+              {feature?.archived_at && (
+                <Text size="xs" c="dimmed">
+                  · archived
+                </Text>
+              )}
+              {feature?.jira_link && (
+                <Anchor
+                  href={feature.jira_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open Jira ticket"
+                  display="inline-flex"
+                >
+                  <IconExternalLink size={14} />
+                </Anchor>
+              )}
+            </Group>
+            {feature?.description && (
+              <Text size="xs" c="dimmed" lineClamp={1}>
+                {feature.description}
+              </Text>
+            )}
+          </Stack>
           <Select
             data={STATUS_OPTIONS}
-            value={feature.status}
+            value={update.status}
             onChange={(v) =>
-              v && patch("status", v as Feature["status"])
+              v && onPatch({ status: v as DigestUpdatePayload["status"] })
             }
             allowDeselect={false}
             w={140}
@@ -83,12 +111,12 @@ export function FeatureRow({
               </ActionIcon>
             </Tooltip>
           </Stack>
-          <Tooltip label="Remove">
+          <Tooltip label="Remove from digest">
             <ActionIcon
               color="red"
               variant="subtle"
               onClick={onRemove}
-              aria-label="Remove feature"
+              aria-label="Remove from digest"
             >
               <IconTrash size={14} />
             </ActionIcon>
@@ -96,34 +124,18 @@ export function FeatureRow({
         </Group>
 
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-          <Textarea
-            placeholder="Description"
-            rows={3}
-            autosize
-            minRows={3}
-            value={feature.description}
-            onChange={(e) => patch("description", e.currentTarget.value)}
-          />
-          <Textarea
-            placeholder="Business value"
-            rows={3}
-            autosize
-            minRows={3}
-            value={feature.business_value}
-            onChange={(e) => patch("business_value", e.currentTarget.value)}
-          />
           <TextInput
             placeholder="Est. target go live (e.g. 'May 2026' or 'TBD')"
-            value={feature.target_go_live}
-            onChange={(e) => patch("target_go_live", e.currentTarget.value)}
+            value={update.target_go_live}
+            onChange={(e) => onPatch({ target_go_live: e.currentTarget.value })}
           />
           <Textarea
-            placeholder="Notes"
+            placeholder="Sprint update / notes"
             rows={2}
             autosize
             minRows={2}
-            value={feature.notes}
-            onChange={(e) => patch("notes", e.currentTarget.value)}
+            value={update.notes}
+            onChange={(e) => onPatch({ notes: e.currentTarget.value })}
           />
         </SimpleGrid>
       </Stack>

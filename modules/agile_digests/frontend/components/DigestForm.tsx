@@ -6,6 +6,7 @@ import {
   Button,
   Group,
   NumberInput,
+  Select,
   SimpleGrid,
   Stack,
   Text,
@@ -13,29 +14,29 @@ import {
   TextInput,
 } from "@mantine/core";
 import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { DataCard, PageHeader } from "@/components/ui";
 import { apiGet, apiPost, apiPut } from "@/lib/api";
 
-import {
-  type Digest,
-  type DigestPayload,
-  type Feature,
-  type Team,
+import type {
+  Digest,
+  DigestPayload,
+  DigestUpdatePayload,
+  Feature,
+  Team,
 } from "../types";
-import { FeatureRow } from "./FeatureRow";
 import { TeamPicker } from "./TeamPicker";
+import { UpdateRow } from "./UpdateRow";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-const blankFeature = (): Feature => ({
-  feature_name: "",
-  description: "",
-  business_value: "",
-  target_go_live: "",
+const blankUpdate = (feature_id: number): DigestUpdatePayload => ({
+  feature_id,
   status: "on_track",
+  target_go_live: "",
   notes: "",
 });
 
@@ -55,16 +56,23 @@ export function DigestForm({ digestId, initial }: Props) {
   );
   const [headerNotes, setHeaderNotes] = useState<string>(initial?.header_notes ?? "");
   const [footerNotes, setFooterNotes] = useState<string>(initial?.footer_notes ?? "");
-  const [features, setFeatures] = useState<Feature[]>(
-    initial?.features.map((f) => ({
-      feature_name: f.feature_name,
-      description: f.description,
-      business_value: f.business_value,
-      target_go_live: f.target_go_live,
-      status: f.status,
-      notes: f.notes,
+
+  // features available for the selected team — both active and any already-referenced archived ones
+  const [teamFeatures, setTeamFeatures] = useState<Feature[]>([]);
+
+  const initialReferencedById = new Map<number, Feature>(
+    (initial?.updates ?? []).map((u) => [u.feature.id, u.feature]),
+  );
+
+  const [updates, setUpdates] = useState<DigestUpdatePayload[]>(
+    initial?.updates.map((u) => ({
+      feature_id: u.feature.id,
+      status: u.status,
+      target_go_live: u.target_go_live,
+      notes: u.notes,
     })) ?? [],
   );
+  const [pickerValue, setPickerValue] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,24 +82,59 @@ export function DigestForm({ digestId, initial }: Props) {
       .catch(() => setTeams([]));
   }, []);
 
-  function addFeature() {
-    setFeatures((fs) => [...fs, blankFeature()]);
+  useEffect(() => {
+    if (teamId === null) {
+      setTeamFeatures([]);
+      return;
+    }
+    apiGet<Feature[]>(
+      `/agile_digests/teams/${teamId}/features?include_archived=true`,
+    )
+      .then(setTeamFeatures)
+      .catch(() => setTeamFeatures([]));
+  }, [teamId]);
+
+  // when the user changes team after editing, reset the update list
+  useEffect(() => {
+    if (initial && teamId === initial.team.id) return;
+    if (!initial) return;
+    setUpdates([]);
+  }, [teamId, initial]);
+
+  const featuresById = new Map<number, Feature>();
+  for (const f of teamFeatures) featuresById.set(f.id, f);
+  // fall back to the initial-referenced features (covers archived ones not in the active list)
+  for (const [id, f] of initialReferencedById) {
+    if (!featuresById.has(id)) featuresById.set(id, f);
   }
 
-  function updateFeature(index: number, next: Feature) {
-    setFeatures((fs) => fs.map((f, i) => (i === index ? next : f)));
+  const addedIds = new Set(updates.map((u) => u.feature_id));
+  const pickerOptions = teamFeatures
+    .filter((f) => !addedIds.has(f.id) && f.archived_at === null)
+    .map((f) => ({ value: String(f.id), label: f.name }));
+
+  function addFeature(featureIdStr: string | null) {
+    if (!featureIdStr) return;
+    const id = Number(featureIdStr);
+    if (addedIds.has(id)) return;
+    setUpdates((us) => [...us, blankUpdate(id)]);
+    setPickerValue(null);
   }
 
-  function removeFeature(index: number) {
-    setFeatures((fs) => fs.filter((_, i) => i !== index));
+  function patchUpdate(index: number, patch: Partial<DigestUpdatePayload>) {
+    setUpdates((us) => us.map((u, i) => (i === index ? { ...u, ...patch } : u)));
   }
 
-  function moveFeature(index: number, dir: -1 | 1) {
-    setFeatures((fs) => {
-      const swapIndex = index + dir;
-      if (swapIndex < 0 || swapIndex >= fs.length) return fs;
-      const next = [...fs];
-      [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  function removeUpdate(index: number) {
+    setUpdates((us) => us.filter((_, i) => i !== index));
+  }
+
+  function moveUpdate(index: number, dir: -1 | 1) {
+    setUpdates((us) => {
+      const swap = index + dir;
+      if (swap < 0 || swap >= us.length) return us;
+      const next = [...us];
+      [next[index], next[swap]] = [next[swap], next[index]];
       return next;
     });
   }
@@ -111,7 +154,7 @@ export function DigestForm({ digestId, initial }: Props) {
       digest_date: digestDate,
       header_notes: headerNotes,
       footer_notes: footerNotes,
-      features,
+      updates,
     };
     try {
       const result = digestId
@@ -129,7 +172,7 @@ export function DigestForm({ digestId, initial }: Props) {
       <PageHeader
         title={digestId ? "Edit digest" : "New digest"}
         description={
-          <Anchor href="/agile_digests" size="sm">
+          <Anchor component={Link} href="/agile_digests" size="sm">
             ← Back to digests
           </Anchor>
         }
@@ -185,32 +228,66 @@ export function DigestForm({ digestId, initial }: Props) {
       <DataCard
         title="Features"
         actions={
-          <Button
-            size="xs"
-            variant="light"
-            leftSection={<IconPlus size={12} />}
-            onClick={() => addFeature()}
-          >
-            Add feature
-          </Button>
+          teamId && (
+            <Button
+              size="xs"
+              variant="default"
+              component={Link}
+              href={`/agile_digests/teams/${teamId}/features`}
+              leftSection={<IconPlus size={12} />}
+            >
+              Manage features
+            </Button>
+          )
         }
       >
         <Stack gap="sm">
-          {features.length === 0 && (
+          {teamId === null ? (
             <Text size="sm" c="dimmed" fs="italic">
-              No features.
+              Pick a team to add feature updates.
+            </Text>
+          ) : (
+            <Group gap="xs" align="flex-end">
+              <Select
+                placeholder={
+                  pickerOptions.length === 0
+                    ? "No more features to add"
+                    : "Add a feature update…"
+                }
+                data={pickerOptions}
+                value={pickerValue}
+                onChange={addFeature}
+                searchable
+                clearable
+                disabled={pickerOptions.length === 0}
+                style={{ flex: 1 }}
+                comboboxProps={{ withinPortal: true }}
+              />
+            </Group>
+          )}
+
+          {updates.length === 0 && teamId !== null && (
+            <Text size="sm" c="dimmed" fs="italic">
+              No feature updates yet.
             </Text>
           )}
-          {features.map((f, i) => (
-            <FeatureRow
-              key={i}
-              feature={f}
-              onChange={(next) => updateFeature(i, next)}
-              onRemove={() => removeFeature(i)}
-              onMoveUp={i > 0 ? () => moveFeature(i, -1) : null}
-              onMoveDown={i < features.length - 1 ? () => moveFeature(i, 1) : null}
-            />
-          ))}
+
+          {updates.map((u, i) => {
+            const feature = featuresById.get(u.feature_id);
+            return (
+              <UpdateRow
+                key={u.feature_id}
+                feature={feature}
+                update={u}
+                onPatch={(patch) => patchUpdate(i, patch)}
+                onRemove={() => removeUpdate(i)}
+                onMoveUp={i > 0 ? () => moveUpdate(i, -1) : null}
+                onMoveDown={
+                  i < updates.length - 1 ? () => moveUpdate(i, 1) : null
+                }
+              />
+            );
+          })}
         </Stack>
       </DataCard>
 

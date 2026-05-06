@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import {
   IconAlertTriangle,
+  IconListDetails,
   IconPlus,
   IconSearch,
 } from "@tabler/icons-react";
@@ -34,7 +35,7 @@ export default function AgileDigestsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiGet<Team[]>("/agile_digests/teams")
+    apiGet<Team[]>("/teams/teams")
       .then(setTeams)
       .catch(() => {});
   }, []);
@@ -66,6 +67,16 @@ export default function AgileDigestsPage() {
         description="Sprint summaries grouped by team."
         actions={
           <>
+            {teamFilter && (
+              <Button
+                component={Link}
+                href={`/agile_digests/teams/${teamFilter}/features`}
+                variant="default"
+                leftSection={<IconListDetails size={14} />}
+              >
+                Manage features
+              </Button>
+            )}
             <Button
               component={Link}
               href="/agile_digests/search"

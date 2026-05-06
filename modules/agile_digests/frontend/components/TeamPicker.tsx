@@ -23,7 +23,7 @@ export function TeamPicker({ teams, value, onChange, onTeamCreated }: Props) {
   async function submit() {
     if (!draft.trim()) return;
     try {
-      const team = await apiPost<Team>("/agile_digests/teams", {
+      const team = await apiPost<Team>("/teams/teams", {
         name: draft.trim(),
       });
       onTeamCreated(team);

@@ -18,13 +18,37 @@ export type Team = {
 };
 
 export type Feature = {
-  id?: number;
-  position?: number;
-  feature_name: string;
+  id: number;
+  team_id: number;
+  name: string;
   description: string;
   business_value: string;
-  target_go_live: string;
+  jira_link: string;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FeaturePayload = {
+  name: string;
+  description: string;
+  business_value: string;
+  jira_link: string;
+};
+
+export type DigestUpdate = {
+  id: number;
+  feature: Feature;
+  position: number;
   status: Status;
+  target_go_live: string;
+  notes: string;
+};
+
+export type DigestUpdatePayload = {
+  feature_id: number;
+  status: Status;
+  target_go_live: string;
   notes: string;
 };
 
@@ -45,7 +69,7 @@ export type Digest = {
   digest_date: string;
   header_notes: string;
   footer_notes: string;
-  features: (Feature & { id: number; position: number })[];
+  updates: DigestUpdate[];
   created_at: string;
   updated_at: string;
 };
@@ -57,11 +81,22 @@ export type DigestPayload = {
   digest_date: string;
   header_notes: string;
   footer_notes: string;
-  features: Feature[];
+  updates: DigestUpdatePayload[];
+};
+
+export type LatestUpdateRef = {
+  digest_id: number;
+  sprint_number: number;
+  year: number;
+  digest_date: string;
+  notes: string;
+  status: Status;
+  target_go_live: string;
 };
 
 export type SearchHit = {
-  feature: Feature & { id: number; position: number };
-  digest: DigestSummary;
+  feature: Feature;
+  team: Team;
+  latest_update: LatestUpdateRef | null;
   score: number;
 };

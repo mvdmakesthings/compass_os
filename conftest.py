@@ -101,7 +101,8 @@ async def _truncate_tables():
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE TABLE ad_digest_features, ad_digests, ad_teams "
+                "TRUNCATE TABLE ad_digest_updates, ad_digests, ad_features, "
+                "team_members, people, teams "
                 "RESTART IDENTITY CASCADE"
             )
         )

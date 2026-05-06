@@ -5,6 +5,7 @@ export type FrontendModule = { name: string; nav: ModuleNavEntry[] };
 // time via Node fs) lands once a third real module exists.
 export const modules: FrontendModule[] = [
   { name: "hello", nav: [{ label: "Hello", href: "/hello" }] },
+  { name: "teams", nav: [{ label: "Teams", href: "/teams" }] },
   {
     name: "agile_digests",
     nav: [{ label: "Agile Digests", href: "/agile_digests" }],
