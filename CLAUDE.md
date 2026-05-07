@@ -91,6 +91,12 @@ Run tests (52 tests, ~99% coverage):
 docker compose exec -T backend sh -c "cd /app && PYTHONPATH=/app:/app/backend pytest"
 ```
 
+Hit the API directly through Caddy for ad-hoc debugging (no frontend round-trip):
+
+```bash
+curl -s http://compass-v2.local/api/agile_digests/digests/1
+```
+
 Inspect the dev DB:
 
 ```bash
@@ -121,6 +127,9 @@ docker compose exec -T db psql -U compass -d compass -c "\dt"
 - **Tests use NullPool** (set in `conftest.py`) because asyncpg connections bind to the event loop that created them, and pytest-asyncio creates a fresh loop per test.
 - **DB DNS race**: `entrypoint.sh` runs `app.scripts.wait_for_db` before alembic — `depends_on: service_healthy` isn't enough on its own.
 - **Adding a root-level file that the backend container needs to see** (e.g. test config) requires a new `volumes:` entry in `docker-compose.yml`.
+- **Replacing a relationship collection with overlapping unique keys**: SA orders new INSERTs before orphan DELETEs, so re-saving with the same child keys (e.g. `(digest_id, feature_id)`) trips the unique constraint. Call `coll.clear()` + `await db.flush()` before reassigning, and wrap `_build_*` together with `commit()` in the `IntegrityError` try/except since the flush can raise.
+- **Test relationship-replacement with same keys, not just different keys** — re-saving a parent with identical child IDs is a separate code path that exercises orphan-delete ordering. The "with different keys" test passes even when the same-keys path is broken.
+- **Debugging swallowed `IntegrityError`s**: routes catch and re-raise as generic 409s, hiding which constraint fired. Temporarily `print(f"... {e!r}", file=sys.stderr, flush=True)` in the except branch to see the real constraint name in `docker compose logs backend`.
 
 ## Frontend module conventions
 
