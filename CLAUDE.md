@@ -52,7 +52,7 @@ compass_v2/
 - **Frontend:** Next.js (App Router), React 19, TypeScript, Tailwind CSS v4
 - **Database:** PostgreSQL 16
 - **Reverse proxy:** Caddy 2, serving `http://compass-v2.local`
-- **Dev environment:** Docker Compose only. Add `127.0.0.1 compass-v2.local` to `/etc/hosts`. App is at `http://compass-v2.local:8080`. Postgres is exposed on host `5433` (so v1 on `5432` keeps working). Caddy uses `auto_https off` to stay HTTP.
+- **Dev environment:** Docker Compose only. Add `127.0.0.1 compass-v2.local` to `/etc/hosts`. App is at `http://compass-v2.local`. Caddy binds host port 80, so v1 (also on 80) must be stopped first. Postgres is exposed on host `5433` (so v1 on `5432` keeps working). Caddy uses `auto_https off` to stay HTTP.
 
 Notably absent vs. v1: ChromaDB, faster-whisper, Anthropic client, n8n. Each comes back when a module needs it.
 
@@ -136,3 +136,27 @@ The frontend is dark-only, dense, and Linear-leaning, built on **Mantine v9** wi
 ## Git rules
 
 - Never reference Claude Code or Anthropic as a co-author in commits.
+
+## gstack (REQUIRED — global install)
+
+**Before doing ANY work, verify gstack is installed:**
+
+```bash
+test -d ~/.claude/skills/gstack/bin && echo "GSTACK_OK" || echo "GSTACK_MISSING"
+```
+
+If GSTACK_MISSING: STOP. Do not proceed. Tell the user:
+
+> gstack is required for all AI-assisted work in this repo.
+> Install it:
+> ```bash
+> git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
+> cd ~/.claude/skills/gstack && ./setup --team
+> ```
+> Then restart your AI coding tool.
+
+Do not skip skills, ignore gstack errors, or work around missing gstack.
+
+Using gstack skills: After install, skills like /qa, /ship, /review, /investigate,
+and /browse are available. Use /browse for all web browsing.
+Use ~/.claude/skills/gstack/... for gstack file paths (the global path).
