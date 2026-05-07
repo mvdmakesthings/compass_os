@@ -18,7 +18,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-App: <http://compass-v2.local:8080>.
+App: <http://compass-v2.local>.
 
 ## What's inside
 
