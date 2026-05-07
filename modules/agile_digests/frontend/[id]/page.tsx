@@ -24,6 +24,7 @@ import { useEffect, useState } from "react";
 import { DataCard, PageHeader } from "@/components/ui";
 import { apiDelete, apiGet } from "@/lib/api";
 
+import { JiraStatusBadge } from "../components/JiraStatusBadge";
 import { StatusBadge } from "../components/StatusBadge";
 import { type Digest } from "../types";
 
@@ -146,6 +147,7 @@ export default function DigestDetailPage() {
                   <Table.Th>Business value</Table.Th>
                   <Table.Th>Target go live</Table.Th>
                   <Table.Th>Status</Table.Th>
+                  <Table.Th>Jira status</Table.Th>
                   <Table.Th>Sprint update</Table.Th>
                 </Table.Tr>
               </Table.Thead>
@@ -190,6 +192,12 @@ export default function DigestDetailPage() {
                     </Table.Td>
                     <Table.Td>
                       <StatusBadge status={u.status} />
+                    </Table.Td>
+                    <Table.Td>
+                      <JiraStatusBadge
+                        status={u.feature.jira_status}
+                        category={u.feature.jira_status_category}
+                      />
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>

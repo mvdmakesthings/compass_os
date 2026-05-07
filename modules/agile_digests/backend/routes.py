@@ -342,7 +342,7 @@ async def create_digest(payload: DigestIn, db: AsyncSession = Depends(get_db)) -
 
 @router.get("/digests/{digest_id}", response_model=DigestOut)
 async def get_digest(digest_id: int, db: AsyncSession = Depends(get_db)) -> DigestOut:
-    return await _load_digest_out(digest_id, db)
+    return await _load_digest_out(digest_id, db, sync_jira=True)
 
 
 @router.put("/digests/{digest_id}", response_model=DigestOut)
@@ -373,7 +373,9 @@ async def delete_digest(digest_id: int, db: AsyncSession = Depends(get_db)) -> N
     await db.commit()
 
 
-async def _load_digest_out(digest_id: int, db: AsyncSession) -> DigestOut:
+async def _load_digest_out(
+    digest_id: int, db: AsyncSession, *, sync_jira: bool = False
+) -> DigestOut:
     stmt = (
         select(Digest)
         .where(Digest.id == digest_id)
@@ -387,6 +389,13 @@ async def _load_digest_out(digest_id: int, db: AsyncSession) -> DigestOut:
     if digest is None:
         raise HTTPException(status_code=404, detail="Digest not found")
     updates = sorted(digest.updates, key=lambda u: u.position)
+
+    if sync_jira:
+        await _sync_many(db, [u.feature for u in updates])
+        await db.commit()
+        for u in updates:
+            await db.refresh(u.feature)
+
     return DigestOut(
         id=digest.id,
         team=TeamOut.model_validate(digest.team),

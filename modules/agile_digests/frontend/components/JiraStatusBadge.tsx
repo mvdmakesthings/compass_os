@@ -2,11 +2,16 @@ import { Badge } from "@mantine/core";
 
 import type { JiraStatusCategory } from "../types";
 
-const COLOR: Record<string, string> = {
+const CATEGORY_COLOR: Record<string, string> = {
   new: "blue",
-  indeterminate: "yellow",
-  done: "green",
+  indeterminate: "green",
+  done: "gray",
 };
+
+function colorFor(status: string, category: JiraStatusCategory | null): string {
+  if (/block/i.test(status)) return "red";
+  return (category && CATEGORY_COLOR[category]) || "gray";
+}
 
 export function JiraStatusBadge({
   status,
@@ -16,9 +21,8 @@ export function JiraStatusBadge({
   category: JiraStatusCategory | null;
 }) {
   if (!status) return null;
-  const color = (category && COLOR[category]) || "gray";
   return (
-    <Badge size="xs" color={color} variant="light">
+    <Badge size="xs" color={colorFor(status, category)} variant="light">
       {status}
     </Badge>
   );

@@ -4,7 +4,7 @@ import { STATUS_LABELS, type Status } from "../types";
 
 const COLORS: Record<Status, MantineColor> = {
   on_track: "green",
-  at_risk: "yellow",
+  at_risk: "red",
   blocked: "red",
   complete: "accent",
   unknown: "gray",
