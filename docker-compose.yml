@@ -22,7 +22,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-compass}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-compass}
       DB_HOST: db
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://compass-v2.local:8080,http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://compass-v2.local,http://localhost:3000}
+      JIRA_BASE_URL: ${JIRA_BASE_URL:-}
+      JIRA_EMAIL: ${JIRA_EMAIL:-}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN:-}
+      JIRA_CACHE_TTL_SECONDS: ${JIRA_CACHE_TTL_SECONDS:-86400}
+      JIRA_TARGET_END_FIELD_NAMES: ${JIRA_TARGET_END_FIELD_NAMES:-}
     volumes:
       - ./backend:/app/backend
       - ./modules:/app/modules
@@ -36,7 +41,7 @@ services:
   frontend:
     build: ./frontend
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://compass-v2.local:8080/api}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://compass-v2.local/api}
     volumes:
       - ./frontend/src:/app/frontend/src
       - ./frontend/next.config.ts:/app/frontend/next.config.ts
@@ -47,7 +52,7 @@ services:
   caddy:
     image: caddy:2-alpine
     ports:
-      - "8080:80"
+      - "80:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data

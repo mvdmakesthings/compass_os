@@ -35,6 +35,7 @@ import { useEffect, useState } from "react";
 import { DataCard, EmptyState, PageHeader } from "@/components/ui";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 
+import { JiraStatusBadge } from "../../../components/JiraStatusBadge";
 import type { Feature, FeaturePayload, Team } from "../../../types";
 
 const blank: FeaturePayload = {
@@ -215,7 +216,7 @@ export default function TeamFeaturesPage() {
         />
       ) : (
         <DataCard>
-          <Table.ScrollContainer minWidth={720}>
+          <Table.ScrollContainer minWidth={960}>
             <Table
               verticalSpacing="xs"
               horizontalSpacing="sm"
@@ -228,6 +229,8 @@ export default function TeamFeaturesPage() {
                   <Table.Th>Feature</Table.Th>
                   <Table.Th>Description</Table.Th>
                   <Table.Th>Business value</Table.Th>
+                  <Table.Th>Jira status</Table.Th>
+                  <Table.Th>Target end</Table.Th>
                   <Table.Th>State</Table.Th>
                   <Table.Th ta="right">Actions</Table.Th>
                 </Table.Tr>
@@ -243,9 +246,14 @@ export default function TeamFeaturesPage() {
                   >
                     <Table.Td>
                       <Group gap={4} wrap="nowrap" align="center">
-                        <Text size="sm" fw={500}>
+                        <Anchor
+                          component={Link}
+                          href={`/agile_digests/teams/${teamId}/features/${f.id}`}
+                          size="sm"
+                          fw={500}
+                        >
                           {f.name}
-                        </Text>
+                        </Anchor>
                         {f.jira_link && (
                           <Anchor
                             href={f.jira_link}
@@ -256,6 +264,21 @@ export default function TeamFeaturesPage() {
                           >
                             <IconExternalLink size={14} />
                           </Anchor>
+                        )}
+                        {f.jira_sync_failed && (
+                          <Tooltip
+                            label={
+                              f.jira_synced_at
+                                ? `Last synced ${new Date(f.jira_synced_at).toLocaleString()}; refresh failed`
+                                : "Jira refresh failed"
+                            }
+                          >
+                            <IconAlertTriangle
+                              size={14}
+                              color="var(--mantine-color-yellow-5)"
+                              aria-label="Jira refresh failed"
+                            />
+                          </Tooltip>
                         )}
                       </Group>
                     </Table.Td>
@@ -275,6 +298,17 @@ export default function TeamFeaturesPage() {
                         lineClamp={3}
                       >
                         {f.business_value}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <JiraStatusBadge
+                        status={f.jira_status}
+                        category={f.jira_status_category}
+                      />
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" c={f.jira_target_end ? undefined : "dimmed"}>
+                        {f.jira_target_end ?? "—"}
                       </Text>
                     </Table.Td>
                     <Table.Td>
@@ -354,9 +388,10 @@ export default function TeamFeaturesPage() {
           <TextInput
             label="Name"
             value={draft.name}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, name: e.currentTarget.value }))
-            }
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setDraft((d) => ({ ...d, name: value }));
+            }}
             required
           />
           <Textarea
@@ -365,9 +400,10 @@ export default function TeamFeaturesPage() {
             autosize
             minRows={3}
             value={draft.description}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, description: e.currentTarget.value }))
-            }
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setDraft((d) => ({ ...d, description: value }));
+            }}
           />
           <Textarea
             label="Business value"
@@ -375,21 +411,20 @@ export default function TeamFeaturesPage() {
             autosize
             minRows={3}
             value={draft.business_value}
-            onChange={(e) =>
-              setDraft((d) => ({
-                ...d,
-                business_value: e.currentTarget.value,
-              }))
-            }
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setDraft((d) => ({ ...d, business_value: value }));
+            }}
           />
           <TextInput
             label="Jira link"
             type="url"
             placeholder="https://… (optional)"
             value={draft.jira_link}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, jira_link: e.currentTarget.value }))
-            }
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setDraft((d) => ({ ...d, jira_link: value }));
+            }}
           />
           {saveError && (
             <Alert

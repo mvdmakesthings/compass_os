@@ -31,6 +31,20 @@ class FeatureOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # Jira metadata (populated lazily by the sync service)
+    jira_issue_key: str | None = None
+    jira_status: str | None = None
+    jira_status_category: str | None = None
+    jira_summary: str | None = None
+    jira_description: str | None = None
+    jira_acceptance_criteria: str | None = None
+    jira_target_end: date | None = None
+    jira_capitalizable: str | None = None
+    jira_synced_at: datetime | None = None
+    jira_sync_error: str | None = None
+    jira_sync_error_at: datetime | None = None
+    jira_sync_failed: bool = False
+
 
 # ---------- Digest updates ----------
 

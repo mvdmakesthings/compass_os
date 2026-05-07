@@ -10,7 +10,7 @@ from app.database import get_db
 from modules.teams.backend.models import Team
 from modules.teams.backend.schemas import TeamOut
 
-from . import embeddings
+from . import embeddings, jira_client, jira_sync
 from .models import Digest, DigestUpdate, Feature
 from .schemas import (
     DigestIn,
@@ -27,7 +27,60 @@ from .schemas import (
 router = APIRouter()
 
 
+# ---------- Jira diagnostics ----------
+
+
+@router.get("/jira/status")
+async def jira_status() -> dict:
+    """Smoke-test the configured Jira credentials by hitting /rest/api/3/myself.
+
+    Returns the authenticated account's email + name on success, or a structured
+    error payload (no token contents) on failure. Useful for debugging
+    misconfigured env vars.
+    """
+    import httpx
+
+    try:
+        async with jira_client._client() as c:
+            resp = await c.get("/rest/api/3/myself")
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                "ok": True,
+                "base_url": jira_client._settings()[0],
+                "account_id": data.get("accountId"),
+                "email": data.get("emailAddress"),
+                "display_name": data.get("displayName"),
+            }
+        return {
+            "ok": False,
+            "base_url": jira_client._settings()[0],
+            "status": resp.status_code,
+            "detail": resp.text[:300],
+        }
+    except jira_client.JiraConfigError as e:
+        return {"ok": False, "status": "config", "detail": str(e)}
+    except (httpx.HTTPError, OSError) as e:
+        return {"ok": False, "status": "transport", "detail": str(e)}
+
+
 # ---------- Features ----------
+
+
+def _feature_out(feature: Feature) -> FeatureOut:
+    out = FeatureOut.model_validate(feature)
+    out.jira_sync_failed = jira_sync.has_failed_sync(feature)
+    return out
+
+
+async def _sync_many(db: AsyncSession, features: list[Feature]) -> None:
+    # AsyncSession isn't safe for concurrent use, so refresh sequentially.
+    # With the default 24h TTL most calls return immediately without a network hop.
+    for f in features:
+        try:
+            await jira_sync.sync_feature(db, f)
+        except Exception:  # defensive — sync_feature already swallows JiraError
+            pass
 
 
 def _embed_feature(name: str, description: str, business_value: str) -> list[float]:
@@ -52,7 +105,12 @@ async def list_team_features(
         stmt = stmt.where(Feature.archived_at.is_(None))
     stmt = stmt.order_by(Feature.archived_at.is_not(None), Feature.name)
     result = await db.execute(stmt)
-    return [FeatureOut.model_validate(f) for f in result.scalars().all()]
+    features = list(result.scalars().all())
+    await _sync_many(db, features)
+    await db.commit()
+    for f in features:
+        await db.refresh(f)
+    return [_feature_out(f) for f in features]
 
 
 @router.post(
@@ -78,7 +136,7 @@ async def create_feature(
     db.add(feature)
     await db.commit()
     await db.refresh(feature)
-    return FeatureOut.model_validate(feature)
+    return _feature_out(feature)
 
 
 @router.get("/features/{feature_id}", response_model=FeatureOut)
@@ -86,7 +144,23 @@ async def get_feature(feature_id: int, db: AsyncSession = Depends(get_db)) -> Fe
     feature = await db.get(Feature, feature_id)
     if feature is None:
         raise HTTPException(status_code=404, detail="Feature not found")
-    return FeatureOut.model_validate(feature)
+    await jira_sync.sync_feature(db, feature)
+    await db.commit()
+    await db.refresh(feature)
+    return _feature_out(feature)
+
+
+@router.post("/features/{feature_id}/refresh-jira", response_model=FeatureOut)
+async def refresh_feature_jira(
+    feature_id: int, db: AsyncSession = Depends(get_db)
+) -> FeatureOut:
+    feature = await db.get(Feature, feature_id)
+    if feature is None:
+        raise HTTPException(status_code=404, detail="Feature not found")
+    await jira_sync.sync_feature(db, feature, force=True)
+    await db.commit()
+    await db.refresh(feature)
+    return _feature_out(feature)
 
 
 @router.put("/features/{feature_id}", response_model=FeatureOut)
@@ -111,7 +185,7 @@ async def update_feature(
         )
     await db.commit()
     await db.refresh(feature)
-    return FeatureOut.model_validate(feature)
+    return _feature_out(feature)
 
 
 @router.delete("/features/{feature_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -381,7 +455,7 @@ async def search_features(
     for feature, dist in rows:
         hits.append(
             SearchHit(
-                feature=FeatureOut.model_validate(feature),
+                feature=_feature_out(feature),
                 team=TeamOut.model_validate(feature.team),
                 latest_update=latest_by_feature.get(feature.id),
                 score=float(1.0 - dist),

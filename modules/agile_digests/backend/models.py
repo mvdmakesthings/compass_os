@@ -33,6 +33,21 @@ class Feature(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     business_value: Mapped[str] = mapped_column(Text, nullable=False, default="")
     jira_link: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    jira_issue_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    jira_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    jira_status_category: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    jira_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jira_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jira_acceptance_criteria: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jira_target_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    jira_capitalizable: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    jira_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    jira_sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jira_sync_error_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM))
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

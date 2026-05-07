@@ -17,6 +17,8 @@ export type Team = {
   created_at: string;
 };
 
+export type JiraStatusCategory = "new" | "indeterminate" | "done" | string;
+
 export type Feature = {
   id: number;
   team_id: number;
@@ -27,6 +29,18 @@ export type Feature = {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
+  jira_issue_key: string | null;
+  jira_status: string | null;
+  jira_status_category: JiraStatusCategory | null;
+  jira_summary: string | null;
+  jira_description: string | null;
+  jira_acceptance_criteria: string | null;
+  jira_target_end: string | null;
+  jira_capitalizable: string | null;
+  jira_synced_at: string | null;
+  jira_sync_error: string | null;
+  jira_sync_error_at: string | null;
+  jira_sync_failed: boolean;
 };
 
 export type FeaturePayload = {
