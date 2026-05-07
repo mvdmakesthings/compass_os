@@ -3,16 +3,20 @@
 import {
   Alert,
   Anchor,
+  Badge,
   Button,
   Group,
   Loader,
   Stack,
   Table,
   Text,
+  ThemeIcon,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import {
   IconAlertTriangle,
+  IconCircle,
+  IconCircleCheck,
   IconEdit,
   IconExternalLink,
   IconTrash,
@@ -118,13 +122,47 @@ export default function DigestDetailPage() {
         }
       />
 
-      {digest.header_notes && (
-        <DataCard title="Header notes">
-          <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-            {digest.header_notes}
+      <DataCard title="Sprint goals">
+        {digest.goals.length === 0 ? (
+          <Text size="sm" c="dimmed" fs="italic">
+            No goals set for this sprint.
           </Text>
-        </DataCard>
-      )}
+        ) : (
+          <Stack gap="xs">
+            {digest.goals.map((g) => (
+              <Group key={g.id} gap="sm" wrap="nowrap" align="center">
+                <ThemeIcon
+                  size="sm"
+                  radius="xl"
+                  variant={g.completed ? "filled" : "default"}
+                  color={g.completed ? "green" : "gray"}
+                >
+                  {g.completed ? (
+                    <IconCircleCheck size={16} />
+                  ) : (
+                    <IconCircle size={16} />
+                  )}
+                </ThemeIcon>
+                <Text
+                  size="sm"
+                  c={g.completed ? "dimmed" : undefined}
+                  td={g.completed ? "line-through" : undefined}
+                  style={{ flex: 1 }}
+                >
+                  {g.title}
+                </Text>
+                <Badge
+                  size="sm"
+                  color={g.completed ? "green" : "gray"}
+                  variant="light"
+                >
+                  {g.completed ? "Completed" : "Not completed"}
+                </Badge>
+              </Group>
+            ))}
+          </Stack>
+        )}
+      </DataCard>
 
       <DataCard title="Features">
         {digest.updates.length === 0 ? (
@@ -212,10 +250,10 @@ export default function DigestDetailPage() {
         )}
       </DataCard>
 
-      {digest.footer_notes && (
-        <DataCard title="Footer notes">
+      {digest.notes && (
+        <DataCard title="Sprint notes">
           <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-            {digest.footer_notes}
+            {digest.notes}
           </Text>
         </DataCard>
       )}

@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -76,8 +77,7 @@ class Digest(Base):
     sprint_number: Mapped[int] = mapped_column(Integer, nullable=False)
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     digest_date: Mapped[date] = mapped_column(Date, nullable=False)
-    header_notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    footer_notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -93,6 +93,11 @@ class Digest(Base):
         back_populates="digest",
         cascade="all, delete-orphan",
         order_by="DigestUpdate.position",
+    )
+    goals: Mapped[list["DigestGoal"]] = relationship(
+        back_populates="digest",
+        cascade="all, delete-orphan",
+        order_by="DigestGoal.position",
     )
 
 
@@ -129,3 +134,26 @@ class DigestUpdate(Base):
 
     digest: Mapped[Digest] = relationship(back_populates="updates")
     feature: Mapped[Feature] = relationship()
+
+
+class DigestGoal(Base):
+    __tablename__ = "ad_digest_goals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    digest_id: Mapped[int] = mapped_column(
+        ForeignKey("ad_digests.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    digest: Mapped[Digest] = relationship(back_populates="goals")

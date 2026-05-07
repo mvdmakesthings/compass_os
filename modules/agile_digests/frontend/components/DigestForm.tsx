@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  ActionIcon,
   Alert,
   Anchor,
   Button,
+  Checkbox,
   Group,
   NumberInput,
   Select,
@@ -13,7 +15,13 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
+import {
+  IconAlertTriangle,
+  IconArrowDown,
+  IconArrowUp,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -23,6 +31,7 @@ import { apiGet, apiPost, apiPut } from "@/lib/api";
 
 import type {
   Digest,
+  DigestGoalPayload,
   DigestPayload,
   DigestUpdatePayload,
   Feature,
@@ -54,14 +63,17 @@ export function DigestForm({ digestId, initial }: Props) {
   const [digestDate, setDigestDate] = useState<string>(
     initial?.digest_date ?? todayIso(),
   );
-  const [headerNotes, setHeaderNotes] = useState<string>(initial?.header_notes ?? "");
-  const [footerNotes, setFooterNotes] = useState<string>(initial?.footer_notes ?? "");
+  const [notes, setNotes] = useState<string>(initial?.notes ?? "");
 
   // features available for the selected team — both active and any already-referenced archived ones
   const [teamFeatures, setTeamFeatures] = useState<Feature[]>([]);
 
   const initialReferencedById = new Map<number, Feature>(
     (initial?.updates ?? []).map((u) => [u.feature.id, u.feature]),
+  );
+
+  const [goals, setGoals] = useState<DigestGoalPayload[]>(
+    initial?.goals.map((g) => ({ title: g.title, completed: g.completed })) ?? [],
   );
 
   const [updates, setUpdates] = useState<DigestUpdatePayload[]>(
@@ -129,6 +141,28 @@ export function DigestForm({ digestId, initial }: Props) {
     setUpdates((us) => us.filter((_, i) => i !== index));
   }
 
+  function addGoal() {
+    setGoals((gs) => [...gs, { title: "", completed: false }]);
+  }
+
+  function patchGoal(index: number, patch: Partial<DigestGoalPayload>) {
+    setGoals((gs) => gs.map((g, i) => (i === index ? { ...g, ...patch } : g)));
+  }
+
+  function removeGoal(index: number) {
+    setGoals((gs) => gs.filter((_, i) => i !== index));
+  }
+
+  function moveGoal(index: number, dir: -1 | 1) {
+    setGoals((gs) => {
+      const swap = index + dir;
+      if (swap < 0 || swap >= gs.length) return gs;
+      const next = [...gs];
+      [next[index], next[swap]] = [next[swap], next[index]];
+      return next;
+    });
+  }
+
   function moveUpdate(index: number, dir: -1 | 1) {
     setUpdates((us) => {
       const swap = index + dir;
@@ -147,14 +181,17 @@ export function DigestForm({ digestId, initial }: Props) {
     }
     setSubmitting(true);
     setError(null);
+    const cleanGoals = goals
+      .map((g) => ({ ...g, title: g.title.trim() }))
+      .filter((g) => g.title.length > 0);
     const payload: DigestPayload = {
       team_id: teamId,
       sprint_number: sprint,
       year,
       digest_date: digestDate,
-      header_notes: headerNotes,
-      footer_notes: footerNotes,
+      notes,
       updates,
+      goals: cleanGoals,
     };
     try {
       const result = digestId
@@ -214,14 +251,70 @@ export function DigestForm({ digestId, initial }: Props) {
               onChange={(e) => setDigestDate(e.currentTarget.value)}
             />
           </SimpleGrid>
-          <Textarea
-            label="Header notes"
-            rows={3}
-            autosize
-            minRows={3}
-            value={headerNotes}
-            onChange={(e) => setHeaderNotes(e.currentTarget.value)}
-          />
+        </Stack>
+      </DataCard>
+
+      <DataCard
+        title="Sprint goals"
+        actions={
+          <Button
+            size="xs"
+            variant="default"
+            onClick={addGoal}
+            leftSection={<IconPlus size={12} />}
+          >
+            Add goal
+          </Button>
+        }
+      >
+        <Stack gap="xs">
+          {goals.length === 0 ? (
+            <Text size="sm" c="dimmed" fs="italic">
+              No goals yet.
+            </Text>
+          ) : (
+            goals.map((g, i) => (
+              <Group key={i} gap="xs" wrap="nowrap" align="center">
+                <Checkbox
+                  checked={g.completed}
+                  onChange={(e) =>
+                    patchGoal(i, { completed: e.currentTarget.checked })
+                  }
+                  aria-label="Completed"
+                />
+                <TextInput
+                  placeholder="Goal title"
+                  value={g.title}
+                  onChange={(e) => patchGoal(i, { title: e.currentTarget.value })}
+                  style={{ flex: 1 }}
+                />
+                <ActionIcon
+                  variant="default"
+                  onClick={() => moveGoal(i, -1)}
+                  disabled={i === 0}
+                  aria-label="Move up"
+                >
+                  <IconArrowUp size={14} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="default"
+                  onClick={() => moveGoal(i, 1)}
+                  disabled={i === goals.length - 1}
+                  aria-label="Move down"
+                >
+                  <IconArrowDown size={14} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="light"
+                  color="red"
+                  onClick={() => removeGoal(i)}
+                  aria-label="Remove goal"
+                >
+                  <IconTrash size={14} />
+                </ActionIcon>
+              </Group>
+            ))
+          )}
         </Stack>
       </DataCard>
 
@@ -291,13 +384,13 @@ export function DigestForm({ digestId, initial }: Props) {
         </Stack>
       </DataCard>
 
-      <DataCard title="Footer notes">
+      <DataCard title="Sprint notes">
         <Textarea
-          rows={3}
+          rows={4}
           autosize
-          minRows={3}
-          value={footerNotes}
-          onChange={(e) => setFooterNotes(e.currentTarget.value)}
+          minRows={4}
+          value={notes}
+          onChange={(e) => setNotes(e.currentTarget.value)}
         />
       </DataCard>
 

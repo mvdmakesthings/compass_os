@@ -33,24 +33,28 @@ def update_payload(
     }
 
 
+def goal_payload(*, title: str = "Ship Retention Mailer", completed: bool = False) -> dict[str, Any]:
+    return {"title": title, "completed": completed}
+
+
 def digest_payload(
     *,
     team_id: int,
     sprint_number: int = 8,
     year: int = 2026,
     digest_date: str = "2026-05-04",
-    header_notes: str = "We have completed Sprint 8 of 2026.",
-    footer_notes: str = "Modernization continues across teams.",
+    notes: str = "We have completed Sprint 8 of 2026.",
     updates: list[dict[str, Any]] | None = None,
+    goals: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "team_id": team_id,
         "sprint_number": sprint_number,
         "year": year,
         "digest_date": digest_date,
-        "header_notes": header_notes,
-        "footer_notes": footer_notes,
+        "notes": notes,
         "updates": updates if updates is not None else [],
+        "goals": goals if goals is not None else [],
     }
 
 

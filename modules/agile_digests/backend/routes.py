@@ -11,8 +11,9 @@ from modules.teams.backend.models import Team
 from modules.teams.backend.schemas import TeamOut
 
 from . import embeddings, jira_client, jira_sync
-from .models import Digest, DigestUpdate, Feature
+from .models import Digest, DigestGoal, DigestUpdate, Feature
 from .schemas import (
+    DigestGoalOut,
     DigestIn,
     DigestOut,
     DigestSummary,
@@ -309,8 +310,15 @@ async def _build_digest(
     digest.sprint_number = payload.sprint_number
     digest.year = payload.year
     digest.digest_date = payload.digest_date
-    digest.header_notes = payload.header_notes
-    digest.footer_notes = payload.footer_notes
+    digest.notes = payload.notes
+
+    # Clear-then-flush before re-populating: the unique constraints on
+    # ad_digest_updates(digest_id, feature_id) and the per-goal rows would
+    # otherwise collide because SA orders INSERTs before orphan DELETEs when
+    # the new and old rows share keys.
+    digest.updates.clear()
+    digest.goals.clear()
+    await db.flush()
 
     digest.updates = [
         DigestUpdate(
@@ -323,13 +331,18 @@ async def _build_digest(
         for position, u in enumerate(payload.updates)
     ]
 
+    digest.goals = [
+        DigestGoal(position=i, title=g.title, completed=g.completed)
+        for i, g in enumerate(payload.goals)
+    ]
+
 
 @router.post("/digests", response_model=DigestOut, status_code=status.HTTP_201_CREATED)
 async def create_digest(payload: DigestIn, db: AsyncSession = Depends(get_db)) -> DigestOut:
     digest = Digest()
-    await _build_digest(digest, payload, db)
-    db.add(digest)
     try:
+        await _build_digest(digest, payload, db)
+        db.add(digest)
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -349,11 +362,15 @@ async def get_digest(digest_id: int, db: AsyncSession = Depends(get_db)) -> Dige
 async def update_digest(
     digest_id: int, payload: DigestIn, db: AsyncSession = Depends(get_db)
 ) -> DigestOut:
-    digest = await db.get(Digest, digest_id, options=[selectinload(Digest.updates)])
+    digest = await db.get(
+        Digest,
+        digest_id,
+        options=[selectinload(Digest.updates), selectinload(Digest.goals)],
+    )
     if digest is None:
         raise HTTPException(status_code=404, detail="Digest not found")
-    await _build_digest(digest, payload, db)
     try:
+        await _build_digest(digest, payload, db)
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -382,6 +399,7 @@ async def _load_digest_out(
         .options(
             selectinload(Digest.team),
             selectinload(Digest.updates).selectinload(DigestUpdate.feature),
+            selectinload(Digest.goals),
         )
     )
     result = await db.execute(stmt)
@@ -396,15 +414,16 @@ async def _load_digest_out(
         for u in updates:
             await db.refresh(u.feature)
 
+    goals = sorted(digest.goals, key=lambda g: g.position)
     return DigestOut(
         id=digest.id,
         team=TeamOut.model_validate(digest.team),
         sprint_number=digest.sprint_number,
         year=digest.year,
         digest_date=digest.digest_date,
-        header_notes=digest.header_notes,
-        footer_notes=digest.footer_notes,
+        notes=digest.notes,
         updates=[DigestUpdateOut.model_validate(u) for u in updates],
+        goals=[DigestGoalOut.model_validate(g) for g in goals],
         created_at=digest.created_at,
         updated_at=digest.updated_at,
     )

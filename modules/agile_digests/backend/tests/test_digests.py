@@ -2,6 +2,7 @@ from ._factories import (
     create_feature,
     create_team,
     digest_payload,
+    goal_payload,
     update_payload,
 )
 
@@ -199,14 +200,72 @@ async def test_update_digest_replaces_updates(client):
     new_payload = digest_payload(
         team_id=team_id,
         updates=[update_payload(feature_id=f_new, status="at_risk")],
-        header_notes="UPDATED",
+        notes="UPDATED",
     )
     r = await client.put(f"/agile_digests/digests/{digest_id}", json=new_payload)
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["header_notes"] == "UPDATED"
+    assert body["notes"] == "UPDATED"
     assert [u["feature"]["name"] for u in body["updates"]] == ["new1"]
     assert body["updates"][0]["status"] == "at_risk"
+
+
+async def test_update_digest_keeps_same_features(client):
+    """Re-saving a digest with the same feature_ids must not violate
+    the (digest_id, feature_id) unique constraint."""
+    team_id = await create_team(client)
+    f1 = await create_feature(client, team_id=team_id, name="F1")
+    f2 = await create_feature(client, team_id=team_id, name="F2")
+    create = await client.post(
+        "/agile_digests/digests",
+        json=digest_payload(
+            team_id=team_id,
+            updates=[update_payload(feature_id=f1), update_payload(feature_id=f2)],
+        ),
+    )
+    digest_id = create.json()["id"]
+
+    r = await client.put(
+        f"/agile_digests/digests/{digest_id}",
+        json=digest_payload(
+            team_id=team_id,
+            updates=[
+                update_payload(feature_id=f1, notes="updated"),
+                update_payload(feature_id=f2, notes="updated"),
+            ],
+        ),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert [u["notes"] for u in body["updates"]] == ["updated", "updated"]
+
+
+async def test_update_digest_keeps_same_goals(client):
+    team_id = await create_team(client)
+    create = await client.post(
+        "/agile_digests/digests",
+        json=digest_payload(
+            team_id=team_id,
+            goals=[goal_payload(title="A"), goal_payload(title="B")],
+        ),
+    )
+    digest_id = create.json()["id"]
+
+    # Re-save with the same goal titles + a toggled completion. There is no
+    # unique constraint on goals, but this exercises the same clear-then-flush
+    # path used for updates and guards against future regressions.
+    r = await client.put(
+        f"/agile_digests/digests/{digest_id}",
+        json=digest_payload(
+            team_id=team_id,
+            goals=[
+                goal_payload(title="A", completed=True),
+                goal_payload(title="B"),
+            ],
+        ),
+    )
+    assert r.status_code == 200, r.text
+    assert [g["completed"] for g in r.json()["goals"]] == [True, False]
 
 
 async def test_update_digest_unknown_team_400(client):
@@ -262,6 +321,91 @@ async def test_delete_digest(client):
 async def test_delete_unknown_digest_404(client):
     r = await client.delete("/agile_digests/digests/9999")
     assert r.status_code == 404
+
+
+async def test_create_digest_with_goals_round_trips_in_order(client):
+    team_id = await create_team(client)
+    payload = digest_payload(
+        team_id=team_id,
+        goals=[
+            goal_payload(title="Ship Retention Mailer", completed=True),
+            goal_payload(title="Cut over to new auth"),
+            goal_payload(title="Reduce Jira drift"),
+        ],
+    )
+    r = await client.post("/agile_digests/digests", json=payload)
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert [g["title"] for g in body["goals"]] == [
+        "Ship Retention Mailer",
+        "Cut over to new auth",
+        "Reduce Jira drift",
+    ]
+    assert [g["position"] for g in body["goals"]] == [0, 1, 2]
+    assert [g["completed"] for g in body["goals"]] == [True, False, False]
+
+
+async def test_create_digest_defaults_goals_to_empty(client):
+    team_id = await create_team(client)
+    r = await client.post("/agile_digests/digests", json=digest_payload(team_id=team_id))
+    assert r.status_code == 201
+    assert r.json()["goals"] == []
+
+
+async def test_create_digest_rejects_blank_goal_title(client):
+    team_id = await create_team(client)
+    bad = digest_payload(team_id=team_id, goals=[goal_payload(title="")])
+    r = await client.post("/agile_digests/digests", json=bad)
+    assert r.status_code == 422
+
+
+async def test_update_digest_replaces_goals(client):
+    team_id = await create_team(client)
+    create = await client.post(
+        "/agile_digests/digests",
+        json=digest_payload(
+            team_id=team_id,
+            goals=[
+                goal_payload(title="A"),
+                goal_payload(title="B"),
+            ],
+        ),
+    )
+    digest_id = create.json()["id"]
+
+    r = await client.put(
+        f"/agile_digests/digests/{digest_id}",
+        json=digest_payload(
+            team_id=team_id,
+            goals=[
+                goal_payload(title="B", completed=True),
+                goal_payload(title="C"),
+            ],
+        ),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert [g["title"] for g in body["goals"]] == ["B", "C"]
+    assert [g["completed"] for g in body["goals"]] == [True, False]
+
+
+async def test_delete_digest_cascades_goals(client, db):
+    from sqlalchemy import select
+
+    from modules.agile_digests.backend.models import DigestGoal
+
+    team_id = await create_team(client)
+    create = await client.post(
+        "/agile_digests/digests",
+        json=digest_payload(
+            team_id=team_id,
+            goals=[goal_payload(title="x"), goal_payload(title="y", completed=True)],
+        ),
+    )
+    digest_id = create.json()["id"]
+    await client.delete(f"/agile_digests/digests/{digest_id}")
+    goals = (await db.execute(select(DigestGoal))).scalars().all()
+    assert goals == []
 
 
 async def test_delete_digest_cascades_updates_but_keeps_features(client, db):

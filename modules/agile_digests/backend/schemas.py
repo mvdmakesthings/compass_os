@@ -67,6 +67,23 @@ class DigestUpdateOut(BaseModel):
     notes: str
 
 
+# ---------- Digest goals ----------
+
+
+class DigestGoalIn(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    completed: bool = False
+
+
+class DigestGoalOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    position: int
+    title: str
+    completed: bool
+
+
 # ---------- Digests ----------
 
 
@@ -75,9 +92,9 @@ class DigestIn(BaseModel):
     sprint_number: int = Field(ge=0)
     year: int = Field(ge=2000, le=2100)
     digest_date: date
-    header_notes: str = ""
-    footer_notes: str = ""
+    notes: str = ""
     updates: list[DigestUpdateIn] = Field(default_factory=list)
+    goals: list[DigestGoalIn] = Field(default_factory=list)
 
 
 class DigestSummary(BaseModel):
@@ -99,9 +116,9 @@ class DigestOut(BaseModel):
     sprint_number: int
     year: int
     digest_date: date
-    header_notes: str
-    footer_notes: str
+    notes: str
     updates: list[DigestUpdateOut]
+    goals: list[DigestGoalOut] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

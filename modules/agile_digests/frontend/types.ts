@@ -75,15 +75,27 @@ export type DigestSummary = {
   feature_count: number;
 };
 
+export type DigestGoal = {
+  id: number;
+  position: number;
+  title: string;
+  completed: boolean;
+};
+
+export type DigestGoalPayload = {
+  title: string;
+  completed: boolean;
+};
+
 export type Digest = {
   id: number;
   team: Team;
   sprint_number: number;
   year: number;
   digest_date: string;
-  header_notes: string;
-  footer_notes: string;
+  notes: string;
   updates: DigestUpdate[];
+  goals: DigestGoal[];
   created_at: string;
   updated_at: string;
 };
@@ -93,9 +105,9 @@ export type DigestPayload = {
   sprint_number: number;
   year: number;
   digest_date: string;
-  header_notes: string;
-  footer_notes: string;
+  notes: string;
   updates: DigestUpdatePayload[];
+  goals: DigestGoalPayload[];
 };
 
 export type LatestUpdateRef = {
